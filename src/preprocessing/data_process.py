@@ -72,16 +72,19 @@ def extract_patches(image, cell_coords, patch_size=100):
     return patches
 
 
-def create_graph_data_dict(adatas, areas, neighbors, cell_coords):
+def create_graph_data_dict(adatas, areas, neighbors, cell_coords, embeddings=['X']):
     """
-    Create a dictionary of PyTorch Geometric Data objects from AnnData objects.
-    
+    Create a dictionary of PyTorch Geometric Data objects from AnnData objects,
+    allowing the inclusion of multiple embeddings.
+
     Parameters:
     - adatas: dict of AnnData objects
     - areas: dict of patch areas
     - neighbors: dict of connectivity matrices (affinity matrices with weights)
     - cell_coords: dict of spatial coordinates
-    
+    - embeddings: list of strings specifying which embeddings to include as node features.
+                 For example: ['X', 'X_pca', 'X_umap', 'X_spatial']
+
     Returns:
     - graph_data_dict: dict of PyTorch Geometric Data objects
     """
@@ -99,16 +102,48 @@ def create_graph_data_dict(adatas, areas, neighbors, cell_coords):
             print(f"Warning: No cell coordinates data for '{key}'. Skipping.")
             continue
 
-
         adata = adatas[key]
         num_cells = adata.n_obs
 
-        # Features: Gene expression data
-        # Assuming 'X' is already a NumPy array after preprocessing
-        features = adata.X
-        if scipy.sparse.issparse(features):
-            features = features.toarray()
-        features = torch.tensor(features, dtype=torch.float)
+        # Initialize a list to hold all feature arrays
+        feature_list = []
+
+        for embed in embeddings:
+            if embed == 'X':
+                # Primary gene expression data
+                features = adata.X
+            elif embed in adata.obsm.keys():
+                # Embeddings stored in obsm (e.g., PCA, UMAP)
+                features = adata.obsm[embed]
+            elif embed in adata.layers.keys():
+                # Embeddings stored in layers
+                features = adata.layers[embed]
+            else:
+                print(f"Warning: Embedding '{embed}' not found in 'X', 'obsm', or 'layers' for '{key}'. Skipping this embedding.")
+                continue
+
+            # Convert sparse matrices to dense if necessary
+            if scipy.sparse.issparse(features):
+                features = features.toarray()
+
+            # Convert to torch tensor
+            features = torch.tensor(features, dtype=torch.float)
+
+            # Ensure the number of cells matches
+            if features.shape[0] != num_cells:
+                print(f"Warning: Embedding '{embed}' has {features.shape[0]} cells, which does not match the number of cells ({num_cells}) for '{key}'. Trimming or skipping.")
+                min_len = min(features.shape[0], num_cells)
+                features = features[:min_len]
+                num_cells = min_len  # Update num_cells accordingly
+
+            feature_list.append(features)
+
+        if not feature_list:
+            print(f"Warning: No valid embeddings found for '{key}'. Skipping.")
+            continue
+
+        # Concatenate all features along the feature dimension
+        features = torch.cat(feature_list, dim=1)
 
         # Labels: Patch areas
         label_areas = areas[key]
@@ -131,7 +166,7 @@ def create_graph_data_dict(adatas, areas, neighbors, cell_coords):
             dtype=torch.long
         )
 
-        # Extract edge weights (inverse distances)
+        # Extract edge weights (inverse distances or affinity weights)
         edge_weights = torch.tensor(connectivity.data, dtype=torch.float).unsqueeze(1)  # Shape: [num_edges, 1]
 
         # Create PyTorch Geometric Data object
@@ -145,7 +180,6 @@ def create_graph_data_dict(adatas, areas, neighbors, cell_coords):
         # Optionally, add additional information (e.g., spatial coordinates)
         spatial = torch.tensor(cell_coords[key], dtype=torch.float)
         data.pos = spatial  # 'pos' is a standard attribute in PyTorch Geometric for node positions
-        
 
         # Add to the dictionary
         graph_data_dict[key] = data
