@@ -1,6 +1,5 @@
-import cv2
-import scanpy as sc
-import os
+
+import scanpy as scimport os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
