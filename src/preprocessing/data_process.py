@@ -15,6 +15,7 @@ from sklearn.preprocessing import StandardScaler
 import skimage.io as io
 import random
 from torch_geometric.data import Data
+from tqdm import tqdm
 
 def extract_patches(image, cell_coords, patch_size=100):
     """
