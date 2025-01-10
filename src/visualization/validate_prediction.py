@@ -91,7 +91,7 @@ def collect_predictions(model, data, num_evaluations=10, mask_percentage=0.15, d
 
 def visualize_dimensionality_reduction(predictions, targets, pca_components=50, umap_components=2, random_state=42):
     """
-    Perform PCA and UMAP dimensionality reduction and plot the UMAP projections side by side.
+    Perform PCA and UMAP dimensionality reduction and plot the UMAP projections separately.
 
     Parameters:
     - predictions (np.ndarray): Predicted values.
@@ -103,13 +103,13 @@ def visualize_dimensionality_reduction(predictions, targets, pca_components=50, 
     # PCA for initial dimensionality reduction
     pca = PCA(n_components=pca_components, random_state=random_state)
     pred_pca = pca.fit_transform(predictions)
-    target_pca = pca.transform(targets)
+    target_pca = pca.fit_transform(targets)
 
     # UMAP for 2D visualization
     umap_reducer = umap.UMAP(n_components=umap_components, n_neighbors=15, min_dist=0.1,
                             metric='euclidean', random_state=random_state)
     pred_umap = umap_reducer.fit_transform(pred_pca)
-    target_umap = umap_reducer.transform(target_pca)
+    target_umap = umap_reducer.fit_transform(target_pca)
 
     # Side by Side Scatter Plots: UMAP Projection
     fig, axes = plt.subplots(1, 2, figsize=(16, 6))
