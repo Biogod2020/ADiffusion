@@ -16,7 +16,7 @@ class FineTuningModelBertStyle(nn.Module):
         freeze_encoder (bool): 是否冻结 encoder 部分参数，默认 False，设置为 True 则仅训练输出层。
     """
     def __init__(self, pretrained_model: nn.Module, output_head: nn.Module, freeze_encoder: bool = False):
-        super(FineTuningModel, self).__init__()
+        super(FineTuningModelBertStyle, self).__init__()
 
         # 检查 pretrained_model 是否具有 encoder 属性
         if not hasattr(pretrained_model, "encoders"):
