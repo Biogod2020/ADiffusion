@@ -60,5 +60,5 @@ class FineTuningModelBertStyle(nn.Module):
             x = x[mask]
         
         # 最后传入自定义输出层获得最终结果
-        out = self.output_head(x)
+        out = self.output_head(x, data)
         return out
