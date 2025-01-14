@@ -129,6 +129,7 @@ def train_vae(
     graph_data_dict: dict,
     positive_nodes_dict: dict,
     save_dir: str = 'vae_checkpoints',
+    checkpoint_prefix: str = 'vae',  # 新增的文件名前缀参数
     num_epochs: int = 20,
     batch_size: int = 64,
     warmup_epochs: int = 10,
@@ -152,6 +153,7 @@ def train_vae(
         graph_data_dict (dict): {key -> data}, data 里包含 data.patches: [N, H, W, C]
         positive_nodes_dict (dict): {key -> positive_nodes}, 表示哪些节点是 positive
         save_dir (str): 模型保存目录
+        checkpoint_prefix (str): 模型保存文件名前缀
         num_epochs (int): 训练轮数
         batch_size (int): 每批数据大小
         warmup_epochs (int): KL loss 的 warm-up 轮数
@@ -316,12 +318,12 @@ def train_vae(
         # (可选) 学习率调度
         # scheduler.step()
 
-        # 周期性保存模型
+ # -------- 保存模型权重 --------
         if save_checkpoint and ((epoch % save_interval == 0) or (epoch == num_epochs)):
-            checkpoint_path = os.path.join(save_dir, f"vae_epoch_{epoch}.pth")
+            checkpoint_path = os.path.join(save_dir, f"{checkpoint_prefix}_epoch_{epoch}.pth")
             torch.save(model.state_dict(), checkpoint_path)
             print(f"Saved model checkpoint at: {checkpoint_path}")
-
+            
         # 周期性可视化
         if show_images and ((epoch % visualize_frequency == 0) or (epoch == num_epochs)):
             visualize_reconstructions(model, plaque_loader['val'], device, epoch, num_images=5)
