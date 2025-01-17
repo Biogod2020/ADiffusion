@@ -16,6 +16,7 @@ import skimage.io as io
 import random
 from torch_geometric.data import Data
 from tqdm import tqdm
+from scipy.sparse import csr_matrix, diags
 
 def extract_patches(image, cell_coords, patch_size=100):
     """
@@ -200,55 +201,57 @@ def construct_affinity_matrix(
     mode='radius',
     cutoff=1.0,
     n_neighbors=5,
-    metric='euclidean'
+    metric='euclidean',
+    add_self_loop=False  # New parameter: whether to add self loops
 ):
     """
-    Constructs a neighbors affinity matrix based on either radius cutoff or number of neighbors.
-
+    Constructs a neighbors affinity matrix based on either a radius cutoff or a fixed number of neighbors.
+    
     Parameters:
     - coordinates: (N, D) array of cell coordinates.
-    - mode: 'radius' or 'number' to choose the cutoff method.
+    - mode: 'radius' or 'number' to choose the connectivity method.
     - cutoff: radius value if mode='radius'.
     - n_neighbors: number of neighbors if mode='number'.
     - metric: distance metric to use.
-
+    - add_self_loop: Boolean flag to indicate whether to add self loop (diagonal entries) with weight 1.0.
+    
     Returns:
     - affinity_matrix: (N, N) sparse matrix with inverse distance weights.
-    - island_indices: List of indices representing island points.
     """
     N = coordinates.shape[0]
     island_indices = []
-
+    
     if mode == 'radius':
-        # Use radius_neighbors_graph to get adjacency based on radius
-        adjacency = radius_neighbors_graph(coordinates, radius=cutoff, mode='connectivity', metric=metric, include_self=False)
-
-        # Get distances for the connected pairs
+        # Build connectivity based on the radius
+        adjacency = radius_neighbors_graph(coordinates, radius=cutoff, mode='connectivity', 
+                                             metric=metric, include_self=False)
+        
+        # Get distances and indices within the radius cutoff
         nbrs = NearestNeighbors(radius=cutoff, metric=metric)
         nbrs.fit(coordinates)
-        distances = nbrs.radius_neighbors(coordinates, return_distance=True)[0]
-        indices = nbrs.radius_neighbors(coordinates, return_distance=True)[1]
-
-        # Construct data for sparse matrix
+        distances_list, indices_list = nbrs.radius_neighbors(coordinates, return_distance=True)
+        
+        # Construct the data for the sparse matrix with inverse distance weights
         row = []
         col = []
         data = []
         for i in range(N):
-            neighbors = indices[i]
-            dists = distances[i]
+            # For each point, consider its neighbors (obtained from radius_neighbors)
+            neighbors = indices_list[i]
+            dists = distances_list[i]
             for j, dist in zip(neighbors, dists):
-                if dist > 0:  # Avoid division by zero
+                if dist > 0:  # Exclude self (or potential zero distance cases)
                     row.append(i)
                     col.append(j)
                     data.append(1.0 / dist)
-
+        
         affinity_matrix = csr_matrix((data, (row, col)), shape=(N, N))
-
-        # Identify island points (points with zero neighbors)
+        
+        # Identify island points based solely on neighboring connectivity (without self loops)
         num_neighbors = adjacency.sum(axis=1).A1
         island_indices = np.where(num_neighbors == 0)[0]
         num_islands = len(island_indices)
-
+        
         # Visualization: Distribution of number of neighbors
         plt.figure(figsize=(8,6))
         plt.hist(num_neighbors, bins=30, color='skyblue', edgecolor='black')
@@ -257,12 +260,12 @@ def construct_affinity_matrix(
         plt.ylabel('Frequency')
         plt.grid(True)
         plt.show()
-
+    
     elif mode == 'number':
         if n_neighbors < 0:
             raise ValueError("Number of neighbors must be non-negative.")
         elif n_neighbors == 0:
-            # All points are islands
+            # All points are considered islands
             affinity_matrix = csr_matrix((N, N), dtype=float)
             island_indices = np.arange(N)
             num_islands = N
@@ -274,46 +277,52 @@ def construct_affinity_matrix(
             plt.ylabel('Frequency')
             plt.grid(True)
             plt.show()
+            # Optionally add self loops even if points have no neighbors,
+            # but typically self loops do not affect island detection.
+            if add_self_loop:
+                affinity_matrix = affinity_matrix + diags(np.ones(N))
             return affinity_matrix, island_indices
-
+        
         # Ensure n_neighbors does not exceed N-1
         actual_n_neighbors = min(n_neighbors, N-1)
-
-        # Use NearestNeighbors to get fixed number of neighbors
-        nbrs = NearestNeighbors(n_neighbors=actual_n_neighbors + 1, metric=metric)  # +1 because the first neighbor is itself
+        
+        # Use NearestNeighbors to obtain a fixed number of neighbors.
+        # Note: n_neighbors+1 is used to include the point itself.
+        nbrs = NearestNeighbors(n_neighbors=actual_n_neighbors + 1, metric=metric)
         nbrs.fit(coordinates)
         distances, indices = nbrs.kneighbors(coordinates)
-
-        # Exclude the first column (distance to itself)
-        distances = distances[:, 1:]
-        indices = indices[:, 1:]
-
-        # Handle cases where actual_n_neighbors < n_neighbors
-        # This can happen if N <= n_neighbors
+        
+        if add_self_loop:
+            # If we want to include self loops, we keep the self index (first column) 
+            # and compute a safe weight for self connections.
+            # Here, we assign a fixed weight of 1.0 to self loops.
+            pass  # We will add these self-loop weights later.
+        else:
+            # Exclude the first column (distance to self) if not adding self loop
+            distances = distances[:, 1:]
+            indices = indices[:, 1:]
+        
+        # In case some distances are zero, we avoid division by zero.
         valid_mask = distances > 0
-        distances = distances * valid_mask
+        distances = distances * valid_mask  # Zero stays zero
         indices = indices * valid_mask
-
-        # Construct data for sparse matrix
-        row = np.repeat(np.arange(N), actual_n_neighbors)
+        
+        # Prepare row indices for the sparse matrix
+        row = np.repeat(np.arange(N), actual_n_neighbors if not add_self_loop else actual_n_neighbors + 1)
         col = indices.flatten()
-        # Avoid division by zero
         with np.errstate(divide='ignore'):
             inv_distances = 1.0 / distances.flatten()
-        inv_distances[~np.isfinite(inv_distances)] = 0  # Handle zero distances
-
+        inv_distances[~np.isfinite(inv_distances)] = 0  # Replace infinities or NaNs with 0
+        
         data = inv_distances
-
         affinity_matrix = csr_matrix((data, (row, col)), shape=(N, N))
-
-        # Identify island points (points with zero neighbors)
-        # In number mode, typically no islands if n_neighbors >=1
-        # However, if actual_n_neighbors <1, some points may have zero neighbors
+        
+        # Identify island points (excluding any potential self-loop contribution).
         num_neighbors = (affinity_matrix > 0).sum(axis=1).A1
         island_indices = np.where(num_neighbors == 0)[0]
         num_islands = len(island_indices)
-
-        # Visualization: Distribution of distances to central cells
+        
+        # Visualization: Distribution of distances to neighbors
         plt.figure(figsize=(8,6))
         plt.hist(distances.flatten(), bins=30, color='lightgreen', edgecolor='black')
         plt.title('Distribution of Distances to Neighbors (Fixed Number of Neighbors)')
@@ -321,10 +330,10 @@ def construct_affinity_matrix(
         plt.ylabel('Frequency')
         plt.grid(True)
         plt.show()
-
+    
     else:
         raise ValueError("Mode must be 'radius' or 'number'")
-
+    
     # Plot the coordinates and highlight island points
     plt.figure(figsize=(10,8))
     plt.scatter(coordinates[:,0], coordinates[:,1], c='blue', label='Points', alpha=0.6, edgecolor='k', s=50)
@@ -337,9 +346,15 @@ def construct_affinity_matrix(
     plt.legend()
     plt.grid(True)
     plt.show()
-
+    
     print(f"Number of island points: {num_islands}")
     if num_islands > 0:
         print(f"Island point indices: {island_indices}")
-
+    
+    # Finally, add self loop edges if requested.
+    if add_self_loop:
+        # Adding self-loops with weight 1.0 for every point.
+        self_loops = diags(np.ones(N))
+        affinity_matrix = affinity_matrix + self_loops
+    
     return affinity_matrix
