@@ -138,7 +138,7 @@ class HESTSample:
 
         # 1. 显示 WSI 缩略图
         if self.wsi:
-            thumb = self.get_wsi_thumbnail(level=0, downsample=64)
+            thumb = self.get_wsi_thumbnail(level=0, downsample=128)
             axes[0].imshow(thumb)
             axes[0].set_title(f"{self.sample_id} - WSI Thumbnail")
             axes[0].axis('off')
