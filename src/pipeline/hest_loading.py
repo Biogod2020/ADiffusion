@@ -410,7 +410,7 @@ class HESTDataset:
             transcripts_path = transcripts_candidates[0] if transcripts_candidates else None
 
             # spatial_plot 目录
-            spatial_plot_path = os.path.join(self.data_dir, "spatial_plots", f"{sid}_spatial.png")
+            spatial_plot_path = os.path.join(self.data_dir, "spatial_plots", f"{sid}_spatial_plots.png")
             if not os.path.exists(spatial_plot_path):
                 spatial_plot_path = None  # 如果没有预生成的图像
 
