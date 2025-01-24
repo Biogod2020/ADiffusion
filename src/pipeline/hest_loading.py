@@ -7,6 +7,8 @@ import anndata
 import openslide
 from typing import Optional, Union, List, Dict
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+from PIL import Image
 
 class HESTSample:
     """
@@ -25,7 +27,8 @@ class HESTSample:
         wsi_path: str,
         patches_dir: Optional[str] = None,
         transcripts_path: Optional[str] = None,
-        metadata_dict: Optional[Dict] = None
+        metadata_dict: Optional[Dict] = None,
+        spatial_plot_path: Optional[str] = None
     ):
         """
         初始化样本对象
@@ -36,6 +39,7 @@ class HESTSample:
         self.patches_dir = patches_dir
         self.transcripts_path = transcripts_path
         self.metadata_dict = metadata_dict if metadata_dict else {}
+        self.spatial_plot_path = spatial_plot_path  # 预生成的空间转录组图路径
 
         self._adata_lazy = None  # 用于lazy加载的Scanpy对象
         self._adata_full = None  # 用于full加载的Scanpy对象
@@ -49,6 +53,8 @@ class HESTSample:
             repr_str += f"  transcripts: {self.transcripts_path}\n"
         if self.patches_dir:
             repr_str += f"  patches dir: {self.patches_dir}\n"
+        if self.spatial_plot_path:
+            repr_str += f"  spatial plot: {self.spatial_plot_path}\n"
         return repr_str
 
     # ---------------------------
@@ -72,47 +78,90 @@ class HESTSample:
                 self._adata_full = sc.read_h5ad(self.st_path)
             return self._adata_full
 
-    def visualize_st_data(
+    def visualize_comparison(
         self, 
         lazy: bool = True, 
-        basis: str = 'umap', 
-        color: Optional[Union[str, List[str]]] = None
+        color: Optional[Union[str, List[str]]] = None,
+        use_precomputed_spatial_plot: bool = True
     ):
         """
-        利用 scanpy 自带的工具对 ST 数据进行简单的降维可视化
-        (示例：UMAP 或 PCA 等).
-        需要 full load 才能做基于表达的聚类. 
-        如果 lazy=True, 只能做有限的 backed 模式下的操作.
+        创建一个包含 WSI、ST 数据和 QC 数据的综合图像。
+        参数:
+          lazy: 是否使用 lazy loading.
+          color: scanpy 可视化的颜色参数。
+          use_precomputed_spatial_plot: 是否使用预生成的空间转录组图像.
         """
         adata = self.load_st_data(lazy=lazy)
-        if lazy:
-            print("注意：backed 模式下某些操作(比如高变量基因筛选、聚类)将受限。")
-
-        # 如果是 full 模式，简单演示：pca -> neighbors -> umap
         if not lazy:
-            if 'X_pca' not in adata.obsm:
-                sc.pp.normalize_total(adata, target_sum=1e4)
-                sc.pp.log1p(adata)
-                sc.pp.highly_variable_genes(adata, flavor='seurat', n_top_genes=2000)
-                adata = adata[:, adata.var['highly_variable']]
-                sc.pp.scale(adata, max_value=10)
-                sc.tl.pca(adata, svd_solver='arpack')
-                sc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)
-                sc.tl.umap(adata)
-                sc.tl.leiden(adata, key_added='clusters')
-            
-            sc.pl.umap(adata, color=color if color else 'clusters')
+            # 进行基本的预处理
+            sc.pp.normalize_total(adata, target_sum=1e4)
+            sc.pp.log1p(adata)
+            sc.pp.highly_variable_genes(adata, flavor='seurat', n_top_genes=2000)
+            adata = adata[:, adata.var['highly_variable']]
+            sc.pp.scale(adata, max_value=10)
+            sc.tl.pca(adata, svd_solver='arpack')
+            sc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)
+            sc.tl.umap(adata)
+            sc.tl.leiden(adata, key_added='clusters')
+
+        # 创建子图
+        fig, axes = plt.subplots(1, 3, figsize=(24, 8))
+
+        # 1. 显示 WSI 缩略图
+        thumb = self.get_wsi_thumbnail(level=0, downsample=64)
+        axes[0].imshow(thumb)
+        axes[0].set_title(f"{self.sample_id} - WSI Thumbnail")
+        axes[0].axis('off')
+        
+        # 在 WSI 图像上添加重要的元数据
+        metadata_text = "\n".join([
+            f"Sample ID: {self.metadata_dict.get('Sample ID', 'N/A')}",
+            f"Organ: {self.metadata_dict.get('organ', 'N/A')}",
+            f"Species: {self.metadata_dict.get('species', 'N/A')}",
+            f"Disease State: {self.metadata_dict.get('disease_state', 'N/A')}",
+            f"Technology: {self.metadata_dict.get('st_technology', 'N/A')}"
+        ])
+        axes[0].text(10, 30, metadata_text, fontsize=10, bbox=dict(facecolor='white', alpha=0.5))
+
+        # 2. 显示 ST 数据
+        if use_precomputed_spatial_plot and self.spatial_plot_path and os.path.exists(self.spatial_plot_path):
+            spatial_img = Image.open(self.spatial_plot_path)
+            axes[1].imshow(spatial_img)
+            axes[1].set_title(f"{self.sample_id} - Spatial Transcriptomics (Precomputed)")
+            axes[1].axis('off')
         else:
-            # backed 模式下，只能展示已有的 embedding (如果文件里已经有的话)
-            if f'X_{basis}' in adata.obsm.keys():
-                sc.pl.embedding(
-                    adata, 
-                    basis=basis, 
-                    color=color if color else adata.var_names[0], 
-                    title=f"{self.sample_id} - {basis}"
-                )
-            else:
-                print(f"在backed模式下无法自动生成 {basis}。请尝试full模式。")
+            sc.pl.spatial(
+                adata, 
+                img=self.get_wsi_thumbnail(level=0, downsample=64),  # 使用缩略图作为背景
+                color=color if color else 'clusters',
+                show=False,
+                ax=axes[1]
+            )
+            axes[1].set_title(f"{self.sample_id} - Spatial Transcriptomics")
+        
+        # 3. 显示 QC 数据
+        qc_metrics = {
+            'Number of Spots Under Tissue': self.metadata_dict.get('Number of Spots Under Tissue', np.nan),
+            'Number of Reads': self.metadata_dict.get('Number of Reads', np.nan),
+            'Mean Reads per Spot': self.metadata_dict.get('Mean Reads per Spot', np.nan),
+            'Valid Barcodes': self.metadata_dict.get('Valid Barcodes', np.nan),
+            'Valid UMIs': self.metadata_dict.get('Valid UMIs', np.nan),
+            'Sequencing Saturation': self.metadata_dict.get('Sequencing Saturation', np.nan),
+            'Fraction of Spots Under Tissue': self.metadata_dict.get('Fraction of Spots Under Tissue', np.nan),
+            'Genes Detected': self.metadata_dict.get('Genes Detected', np.nan),
+            'Median Genes per Spot': self.metadata_dict.get('Median Genes per Spot', np.nan),
+            'Median UMI Counts per Spot': self.metadata_dict.get('Median UMI Counts per Spot', np.nan)
+        }
+
+        # 将 QC 数据可视化为条形图
+        qc_df = pd.DataFrame(list(qc_metrics.items()), columns=['Metric', 'Value'])
+        qc_df.plot(kind='bar', x='Metric', y='Value', ax=axes[2], legend=False)
+        axes[2].set_title(f"{self.sample_id} - QC Metrics")
+        axes[2].set_ylabel('Value')
+        axes[2].tick_params(axis='x', rotation=45, ha='right')
+
+        plt.tight_layout()
+        plt.show()
 
     # ---------------------------
     # 2) 读取/加载 WSI 数据
@@ -125,7 +174,7 @@ class HESTSample:
             self._wsi_handle = openslide.OpenSlide(self.wsi_path)
         return self._wsi_handle
 
-    def get_wsi_thumbnail(self, level: int = 0, downsample: int = 32):
+    def get_wsi_thumbnail(self, level: int = 0, downsample: int = 32) -> Image.Image:
         """
         获取 WSI 的缩略图，用于快速可视化
         level: 读取 OpenSlide 的层级 (0 为最高分辨率)
@@ -214,7 +263,10 @@ class HESTDataset:
             if not os.path.exists(st_path):
                 # 也有可能文件名不是严格 {id}.h5ad，你可以在这里做更灵活的匹配
                 # 也可以匹配 "*{sid}*.h5ad" 等
-                continue
+                st_candidates = glob.glob(os.path.join(self.data_dir, "st", f"*{sid}*.h5ad"))
+                if len(st_candidates) == 0:
+                    continue
+                st_path = st_candidates[0]
 
             # 构造 WSI
             # HEST dataset 中 WSI 文件通常是 wsis/{id}.tif 或者 wsis/{id}.tiff
@@ -237,6 +289,11 @@ class HESTDataset:
             transcripts_candidates = glob.glob(os.path.join(self.data_dir, "transcripts", f"{sid}*.parquet"))
             transcripts_path = transcripts_candidates[0] if transcripts_candidates else None
 
+            # spatial_plot 目录
+            spatial_plot_path = os.path.join(self.data_dir, "spatial_plots", f"{sid}_spatial.png")
+            if not os.path.exists(spatial_plot_path):
+                spatial_plot_path = None  # 如果没有预生成的图像
+
             # 构造 sample
             s = HESTSample(
                 sample_id = sid,
@@ -244,7 +301,8 @@ class HESTDataset:
                 wsi_path = wsi_path,
                 patches_dir = patches_dir,
                 transcripts_path = transcripts_path,
-                metadata_dict = row.to_dict()
+                metadata_dict = row.to_dict(),
+                spatial_plot_path = spatial_plot_path
             )
             samples.append(s)
         return samples
