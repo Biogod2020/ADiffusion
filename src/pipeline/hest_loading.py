@@ -230,7 +230,7 @@ class HESTSample:
                 print("未找到 scalefactors，使用默认缩放因子 1.0")
                 scale_factor = 1.0
 
-            # 使用 Plotly 生成图像并保存为 PNG
+            # 使用 Scanpy 生成图像
             fig = sc.pl.spatial(
                 self.adata, 
                 img=self.get_wsi_thumbnail(level=0, downsample=64),  # 使用缩略图作为背景
@@ -255,7 +255,7 @@ class HESTSample:
         返回:
           Optional[openslide.OpenSlide]: 加载的 OpenSlide 对象或 None。
         """
-        if self.wsi:
+        if self.wsi is not None:
             return self.wsi  # 已加载
 
         if not os.path.exists(self.wsi_path):
@@ -284,11 +284,15 @@ class HESTSample:
             print("WSI 对象未加载。")
             return np.zeros((100, 100, 3), dtype=np.uint8)  # 返回一个空白图像
 
-        dims = self.wsi.level_dimensions[level]  # (width, height)
-        new_size = (dims[0] // downsample, dims[1] // downsample)
-        region = self.wsi.read_region((0, 0), level, dims)
-        region = region.resize(new_size)
-        return np.array(region.convert("RGB"))
+        try:
+            dims = self.wsi.level_dimensions[level]  # (width, height)
+            new_size = (dims[0] // downsample, dims[1] // downsample)
+            region = self.wsi.read_region((0, 0), level, dims)
+            region = region.resize(new_size)
+            return np.array(region.convert("RGB"))
+        except Exception as e:
+            print(f"获取 WSI 缩略图失败: {e}")
+            return np.zeros((100, 100, 3), dtype=np.uint8)  # 返回一个空白图像
 
     # ---------------------------
     # 3) 读取 Patches / Transcripts 等
