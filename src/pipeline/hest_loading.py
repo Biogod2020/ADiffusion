@@ -193,7 +193,13 @@ class HESTSample:
         qc_df.plot(kind='bar', x='Metric', y='Value', ax=axes[2], legend=False)
         axes[2].set_title(f"{self.sample_id} - QC Metrics")
         axes[2].set_ylabel('Value')
-        axes[2].tick_params(axis='x', rotation=45, ha='right')
+        # 移除 ha 参数
+        axes[2].tick_params(axis='x', rotation=45)
+
+        # 单独设置水平对齐
+        for label in axes[2].get_xticklabels():
+            label.set_rotation(45)
+            label.set_horizontalalignment('right')
 
         plt.tight_layout()
         plt.show()
