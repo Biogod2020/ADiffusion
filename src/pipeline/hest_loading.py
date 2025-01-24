@@ -423,9 +423,9 @@ class HESTDataset:
                 transcripts_path = transcripts_path,
                 metadata_dict = row.to_dict(),
                 spatial_plot_path = spatial_plot_path,
-                load_adata=True,
+                load_adata=False,
                 adata_lazy=False,  # 根据需要选择懒加载或全加载
-                load_wsi=True
+                load_wsi=False
             )
             samples.append(sample)
         return samples
