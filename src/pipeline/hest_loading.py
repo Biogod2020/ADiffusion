@@ -113,18 +113,21 @@ class HESTSample:
         self, 
         color: Optional[Union[str, List[str]]] = None,
         use_precomputed_spatial_plot: bool = True
-    ):
+    ) -> pd.DataFrame:
         """
-        创建一个包含 WSI、ST 数据和 QC 数据的综合图像。
+        创建一个包含 WSI 和 ST 数据的综合图像，并返回 QC 数据的 DataFrame。
 
         参数:
           color (Optional[Union[str, List[str]]]): Scanpy 可视化的颜色参数。
           use_precomputed_spatial_plot (bool): 是否使用预生成的空间转录组图像。
+
+        返回:
+          pd.DataFrame: QC 指标的 DataFrame。
         """
         if self.adata is None:
             print("AnnData 对象未加载。请确保在初始化时加载或手动加载。")
-            return
-        
+            return pd.DataFrame()
+
         # 检查是否使用预生成的空间转录组图像
         if use_precomputed_spatial_plot and self.spatial_plot_path and os.path.exists(self.spatial_plot_path):
             spatial_img = Image.open(self.spatial_plot_path)
@@ -133,8 +136,8 @@ class HESTSample:
             spatial_img = self.generate_spatial_plot(color=color)
             use_precomputed = False
 
-        # 创建子图
-        fig, axes = plt.subplots(1, 3, figsize=(24, 8))
+        # 创建子图，调整布局使其更紧凑
+        fig, axes = plt.subplots(1, 2, figsize=(16, 8), gridspec_kw={'width_ratios': [1, 1]})
 
         # 1. 显示 WSI 缩略图
         if self.wsi:
@@ -173,8 +176,11 @@ class HESTSample:
                 ax=axes[1]
             )
             axes[1].set_title(f"{self.sample_id} - Spatial Transcriptomics")
-        
-        # 3. 显示 QC 数据
+
+        plt.tight_layout()
+        plt.show()
+
+        # 收集 QC 指标
         qc_metrics = {
             'Number of Spots Under Tissue': self.metadata_dict.get('Number of Spots Under Tissue', np.nan),
             'Number of Reads': self.metadata_dict.get('Number of Reads', np.nan),
@@ -188,21 +194,8 @@ class HESTSample:
             'Median UMI Counts per Spot': self.metadata_dict.get('Median UMI Counts per Spot', np.nan)
         }
 
-        # 将 QC 数据可视化为条形图
-        qc_df = pd.DataFrame(list(qc_metrics.items()), columns=['Metric', 'Value'])
-        qc_df.plot(kind='bar', x='Metric', y='Value', ax=axes[2], legend=False)
-        axes[2].set_title(f"{self.sample_id} - QC Metrics")
-        axes[2].set_ylabel('Value')
-        # 移除 ha 参数
-        axes[2].tick_params(axis='x', rotation=45)
-
-        # 单独设置水平对齐
-        for label in axes[2].get_xticklabels():
-            label.set_rotation(45)
-            label.set_horizontalalignment('right')
-
-        plt.tight_layout()
-        plt.show()
+        qc_df = pd.DataFrame([qc_metrics])
+        return qc_df
 
     def generate_spatial_plot(self, color: Optional[Union[str, List[str]]] = None) -> Image.Image:
         """
@@ -234,6 +227,8 @@ class HESTSample:
                 scale_factor = scalefactors[scalefactor_key]
             else:
                 print("未找到 scalefactors，使用默认缩放因子 1.0")
+                scalefactors = {'tissue_image_scalef': 1.0}
+                self.adata.uns['spatial'] = {'scalefactors': scalefactors}
                 scale_factor = 1.0
 
             # 使用 Scanpy 生成图像
@@ -433,9 +428,43 @@ class HESTDataset:
                 transcripts_path = transcripts_path,
                 metadata_dict = row.to_dict(),
                 spatial_plot_path = spatial_plot_path,
-                load_adata=False,
+                load_adata=False,  # 确保加载 AnnData 对象
                 adata_lazy=False,  # 根据需要选择懒加载或全加载
-                load_wsi=False
+                load_wsi=False      # 根据需要选择加载 WSI
             )
             samples.append(sample)
         return samples
+
+    def compute_metrics_statistics(self, samples: List[HESTSample]) -> pd.DataFrame:
+        """
+        统计过滤后的数据集的关键 QC 指标的统计值。
+
+        参数:
+          samples (List[HESTSample]): 过滤后的样本列表。
+
+        返回:
+          pd.DataFrame: 包含各 QC 指标的统计值（均值、中位数、标准差等）。
+        """
+        # 收集所有样本的 QC 指标
+        qc_list = []
+        for sample in samples:
+            qc_metrics = {
+                'Number of Spots Under Tissue': sample.metadata_dict.get('Number of Spots Under Tissue', np.nan),
+                'Number of Reads': sample.metadata_dict.get('Number of Reads', np.nan),
+                'Mean Reads per Spot': sample.metadata_dict.get('Mean Reads per Spot', np.nan),
+                'Valid Barcodes': sample.metadata_dict.get('Valid Barcodes', np.nan),
+                'Valid UMIs': sample.metadata_dict.get('Valid UMIs', np.nan),
+                'Sequencing Saturation': sample.metadata_dict.get('Sequencing Saturation', np.nan),
+                'Fraction of Spots Under Tissue': sample.metadata_dict.get('Fraction of Spots Under Tissue', np.nan),
+                'Genes Detected': sample.metadata_dict.get('Genes Detected', np.nan),
+                'Median Genes per Spot': sample.metadata_dict.get('Median Genes per Spot', np.nan),
+                'Median UMI Counts per Spot': sample.metadata_dict.get('Median UMI Counts per Spot', np.nan)
+            }
+            qc_list.append(qc_metrics)
+        
+        # 创建 DataFrame
+        qc_df = pd.DataFrame(qc_list)
+        
+        # 计算统计值
+        stats_df = qc_df.describe().T  # 转置以便每个指标作为行
+        return stats_df
