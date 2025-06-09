@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PathOmCLIP: 深度总结</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f7f9;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 950px;
+            margin: auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #e74c3c;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #3498db;
+            margin-top: 25px;
+        }
+        h3 {
+            color: #e74c3c;
+            margin-top: 20px;
+        }
+        p {
+            margin-bottom: 10px;
+            color: #555;
+        }
+        .highlight {
+            background-color: #f9e79f;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .note {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        .figure-ref {
+            font-style: italic;
+            color: #777;
+        }
+        .table-ref {
+            font-style: italic;
+            color: #777;
+        }
+        ul, ol, dl {
+            margin-bottom: 15px;
+            color: #555;
+        }
+        li, dd {
+            margin-bottom: 5px;
+        }
+        dt {
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .author-info {
+            font-size: 0.9em;
+            color: #777;
+            margin-bottom: 15px;
+        }
+        .abstract-summary {
+            background-color: #e8f0fe;
+            padding: 15px;
+            border-left: 5px solid #3498db;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .abstract-summary p {
+            color: #333;
+        }
+        .key-terms {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .concept-explanation {
+            background-color: #f0f8ff;
+            border: 1px solid #add8e6;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        .concept-title {
+            font-weight: bold;
+            color: #191970;
+        }
+        .table-container {
+            overflow-x:auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        caption {
+            caption-side: top;
+            text-align: left;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PathOmCLIP: 深度解析肿瘤组织学与空间基因表达的联系</h1>
+        <div class="author-info">
+            <strong>作者:</strong> Yongju Lee, Xinhao Liu, Minsheng Hao, Tianyu Liu, Aviv Regev<br>
+            <strong>doi:</strong> https://doi.org/10.1101/2024.12.10.627865<br>
+            <strong>预印本:</strong> bioRxiv, 发布于2024年12月11日
+        </div>
+
+        <div class="abstract-summary">
+            <h2>摘要深度解析</h2>
+            <p>
+                本研究介绍了一种突破性的计算模型 <span class="highlight">PathOmCLIP</span>，旨在<span class="highlight">直接从易于获取的肿瘤组织学图像中预测空间解析的基因表达谱</span>。 其解决的核心挑战是 <span class="highlight">配对的组织学和空间转录组学数据有限</span>，这对于训练该领域中强大的机器学习模型至关重要。 PathOmCLIP 通过利用以下强大技术优雅地克服了数据瓶颈：
+            </p>
+            <ul>
+                <li><strong>Foundation Models（基础模型）:</strong>  利用预训练的 <span class="highlight">foundation models</span>，这是一种在海量数据集上训练的复杂 AI 模型。 在本研究中，他们使用了分别在大量病理图像和单细胞 RNA 测序 (RNA-seq) 数据集上预训练的模型。 这些模型已经从各自的数据领域中学习了可泛化的特征。</li>
+                <li><strong>Contrastive Learning（对比学习）:</strong> 采用 <span class="highlight">contrastive learning</span> 框架来弥合两种不同数据类型（组织学图像和基因表达）之间的差距。 这种方法训练模型识别哪个组织学图像对应于哪个空间基因表达谱，方法是最大化正确配对的数据点之间相似性，并最小化错误配对的数据点之间的相似性。</li>
+                <li><strong>Local Contextualization with LocalTransformer（使用 LocalTransformer 的局部语境化）:</strong> 集成了一个新颖的 <span class="highlight">LocalTransformer</span> 模块。 这是一个关键的创新，使模型能够考虑组织学图像中肿瘤结构组织内的<span class="highlight">局部邻域语境</span>。 通过理解细胞和组织结构之间的空间关系，模型可以更准确地预测基因表达模式。</li>
+            </ul>
+            <p>
+                PathOmCLIP 的有效性在 <span class="highlight">五种不同的肿瘤类型</span> 中得到了严格的验证。 结果表明，与现有的最先进方法相比，<span class="highlight">基因表达预测准确性得到了显著提高</span>。 这一进展有可能释放出大量先前无法访问的、嵌入在存档组织学图像集中的临床信息。 通过从组织学图像中准确推断空间转录组学，PathOmCLIP 可以为肿瘤生物学的新发现以及用于癌症诊断、预后和治疗策略的新型生物标志物的识别铺平道路。
+            </p>
+            <p class="key-terms"><strong>关键术语:</strong> Spatial Transcriptomics, Histology Images, Foundation Models, Contrastive Learning, Tumor Microenvironment, Gene Expression Prediction, PathOmCLIP, LocalTransformer, Multi-modal Learning</p>
+        </div>
+
+        <h2>1. 引言：连接形态学和分子图谱</h2>
+        <p>
+            本文首先强调了从组织学图像中获得的<span class="highlight">肿瘤形态学特征</span>在临床病理学、诊断生物标志物和基础癌症生物学研究中的重要作用。 组织学是对组织进行微观研究，长期以来一直是癌症诊断和理解的基石。 作者随后强调了 <span class="highlight">spatial transcriptomics（空间转录组学）</span> 的变革潜力。
+        </p>
+        <div class="concept-explanation">
+            <h4 class="concept-title">什么是 Spatial Transcriptomics?</h4>
+            <p>Spatial transcriptomics 是一项前沿技术，超越了传统的基因表达分析。 它不仅测量整个组织样本中的平均基因表达，而且还允许研究人员绘制出 <span class="highlight">特定基因在组织内活跃的位置</span>，同时保留空间背景。 想象一下将基因表达图谱直接叠加到组织学图像上——这基本上就是 spatial transcriptomics 实现的目标。 这对于理解复杂的生物系统（如肿瘤）至关重要，在肿瘤中，细胞的空间组织及其基因表达模式对于功能和疾病进展至关重要。</p>
+        </div>
+        <p>
+            Spatial transcriptomics 提供了一个独特的机会来 <span class="highlight">整合形态学和基因表达特征</span>，通过揭示以下内容加深我们对肿瘤生物学的理解：
+        </p>
+        <ul>
+            <li><strong>Cell-to-cell interactions（细胞间相互作用）:</strong> 相邻细胞如何根据其基因表达和空间邻近性相互沟通和影响。</li>
+            <li><strong>Multi-cellular neighborhoods（多细胞邻域）:</strong> 肿瘤内的功能单元，由以特定空间排列相互作用的不同细胞类型组成。</li>
+            <li><strong>Links to morphology and tumor progression（形态学和肿瘤进展的联系）:</strong> 组织结构（形态学）的变化如何与基因表达模式相关联，以及这些因素如何促进肿瘤的发生和发展。</li>
+        </ul>
+        <p>
+            与此同时，<span class="highlight">whole slide image scanners（全玻片扫描仪）</span> 在病理实验室中的广泛应用，催生了大量高分辨率病理图像的数字档案。 病理学中的这种“大数据”为应用强大的 <span class="highlight">deep learning models（深度学习模型）</span> 打开了大门。 这些模型可以经过训练来：
+        </p>
+        <ul>
+            <li><strong>Classify cell types from images（从图像中分类细胞类型）:</strong> 根据图像的视觉特征，自动识别和分类肿瘤组织内不同类型的细胞。</li>
+            <li><strong>Analyze the tumor microenvironment quantitatively（定量分析肿瘤微环境）:</strong> 定量测量和表征肿瘤微环境的各种成分，例如免疫细胞、基质细胞和血管的存在。</li>
+            <li><strong>Predict tumor subtypes or patient progression（预测肿瘤亚型或患者进展）:</strong> 开发预测模型，根据图像特征将肿瘤分为亚型或预测患者的预后。</li>
+            <li><strong>Infer molecular features from pathology images（从病理图像中推断分子特征）:</strong> 这是 PathOmCLIP 的关键重点——超越形态学，直接从组织学图像中预测潜在的分子特征，包括基因表达。</li>
+        </ul>
+        <p>
+            <span class="highlight">从组织学图像中推断分子谱</span> 的能力非常有利，因为它：
+        </p>
+        <ul>
+            <li><strong>Saves effort and cost（节省精力和成本）:</strong> 减少了在每个病例中进行昂贵且耗时的基因组学分析（如 RNA-seq）的需要。</li>
+            <li><strong>Utilizes archived specimens（利用存档样本）:</strong> 允许研究人员利用大量的已收集和注释的病理图像档案，甚至包括来自数十年队列和常规临床护理环境的样本。 这在资源匮乏的环境中尤其有价值，在这些环境中，先进的基因组学可能不易获得。</li>
+        </ul>
+        <p>
+            通过连接基因组学和形态学，我们可以更深入地了解 <span class="highlight">基因组学如何驱动形态学表型</span>，并开发基于细胞形态学和分子信息相结合的临床相关生物标志物。
+        </p>
+        <p>
+            虽然之前的研究已经探索了从组织学图像中预测 spatial transcriptomics，但一个主要的瓶颈是 <span class="highlight">配对的病理学和 spatial transcriptomics 数据有限</span>，这限制了有效模型的训练。 为了解决这个问题，PathOmCLIP 策略性地利用了 <span class="highlight">pre-trained foundation models（预训练基础模型）</span> 的强大功能。 具体来说，它使用了：
+        </p>
+        <ul>
+            <li><strong>Pathology Foundation Models（病理学基础模型）:</strong> 在数百万张全玻片图像上训练，这些模型已经学会了从病理图像中提取有意义的视觉特征。</li>
+            <li><strong>Single-cell Foundation Models（单细胞基础模型）:</strong> 在海量单细胞 RNA-seq 数据集上训练，这些模型擅长表示基因表达谱。</li>
+        </ul>
+        <p>
+            <span class="highlight">PathOmCLIP</span> 被引入为一个新颖的多模态模型，它同时利用了成像和 spatial transcriptomics 模态的基础模型。 其核心创新之处在于：
+        </p>
+        <ul>
+            <li><strong>Contrastive Loss Alignment（对比损失对齐）:</strong> 使用 <span class="highlight">contrastive loss（对比损失）</span> 对齐图像和基因表达模态，迫使模型学习一个共享的嵌入空间，其中配对的数据点彼此靠近。</li>
+            <li><strong>LocalTransformer for Context（用于语境的 LocalTransformer）:</strong> 整合 <span class="highlight">LocalTransformer</span> 模块以捕获肿瘤微环境的关键 <span class="highlight">multi-cellular context（多细胞语境）</span>，增强模型预测空间准确基因表达的能力。</li>
+        </ul>
+        <p>
+            该模型的性能使用 <span class="highlight">HEST-1K dataset（HEST-1K 数据集）</span> 在 <span class="highlight">五种不同的癌症类型</span> 上进行了严格的验证，结果表明，与现有方法相比，spatial transcriptomics 预测得到了显著改进。
+        </p>
+
+        <h2>2. 相关工作：PathOmCLIP 的背景</h2>
+        <p>
+            本节将 PathOmCLIP 置于现有研究的背景中，重点关注两个关键领域：<span class="highlight">病理学和单细胞基因组学中的 foundation models</span>，以及先前在 <span class="highlight">从病理图像预测 spatial transcriptomics</span> 方面的工作。
+        </p>
+
+        <h3>2.1 病理学和单细胞 Foundation Models</h3>
+        <p>
+            本文定义了 <span class="highlight">foundation model</span>，并解释了其在此背景下的相关性。
+        </p>
+        <div class="concept-explanation">
+            <h4 class="concept-title">什么是 Foundation Models?</h4>
+            <p>Foundation models 是 AI 领域的一次范式转变。 它们的特点是：
+                <ul>
+                    <li><strong>Large Size（规模庞大）:</strong>  它们拥有大量的参数（数百万到数十亿），使其非常复杂，能够学习复杂的模式。</li>
+                    <li><strong>Massive Datasets（海量数据集）:</strong>  它们在庞大的数据集上进行训练，这些数据集通常从互联网上抓取或从大规模研究项目中编译而来。</li>
+                    <li><strong>General-Purpose Representations（通用表示）:</strong>  目标不是针对特定任务训练它们，而是学习广泛有用的、通用的数据表示。 这些表示（embeddings，嵌入）捕获了数据中的关键特征和关系。</li>
+                    <li><strong>Adaptability（适应性）:</strong>  这些预训练模型随后可以针对各种下游任务进行“fine-tune（微调）”或调整，即使在任务特定数据有限的情况下也是如此。 这种迁移学习能力是一个主要优势。</li>
+                </ul>
+                在本文的背景下，foundation models 用于预先学习来自病理图像和单细胞 RNA-seq 数据的有用特征，*然后再* 在 PathOmCLIP 中用于 spatial gene expression prediction 的特定任务。
+            </p>
+        </div>
+        <p>
+            在 <span class="highlight">病理学领域</span>，最近的工作重点是构建 foundation models，例如 <span class="highlight">GigaPath</span>（PathOmCLIP 中使用的模型）。 GigaPath 在各种肿瘤类型的数据集上进行训练，并提供来自全玻片病理图像的patch-level（切片级别）图像特征。
+        </p>
+        <p>
+            同样，在 <span class="highlight">单细胞基因组学</span> 中，大规模的 curated atlases（整理图谱）（如 Human Cell Atlas）的出现，使得开发单细胞 foundation models 成为可能。 <span class="highlight">scFoundation</span>（也在 PathOmCLIP 中使用）就是这样一个模型，它在超过 5000 万个单细胞 RNA-seq 谱上进行了训练。 它擅长于需要细胞和基因的 robust representation（鲁棒表示）的任务。 作者特别选择 <span class="highlight">scFoundation</span> 是因为它：
+        </p>
+        <ul>
+            <li><strong>Handles spatial omics data well（能够很好地处理空间组学数据）:</strong> 与其他一些单细胞模型不同，scFoundation 不会对 RNA-seq 表达谱进行“binning（分箱）”或离散化。 它直接处理连续的表达值，这更适合表示 spatial omics 数据中的细微差别。</li>
+        </ul>
+
+        <h3>2.2 从病理图像预测 Spatial Transcriptomics 谱</h3>
+        <p>
+            本节介绍了 <span class="highlight">spatial transcriptomics profile prediction（空间转录组谱预测）</span> 的背景，以及 PathOmCLIP 如何在现有方法的基础上构建。 讨论了 spatial transcriptomics 技术，特别是使用 <span class="highlight">spotted DNA spatial barcodes（点状 DNA 空间条形码）</span> 的技术，如 Visium（在 HEST-1K 数据集中使用）。
+        </p>
+        <div class="concept-explanation">
+            <h4 class="concept-title">Visium Spatial Transcriptomics 技术</h4>
+            <p>Visium 是一种流行的 spatial transcriptomics 方法，其工作原理如下：
+                <ol>
+                    <li><strong>Placing a tissue section onto a slide with spatially barcoded spots（将组织切片放置在带有空间条形码点的载玻片上）.</strong> 每个点包含数百万个独特的 DNA 条形码，这些条形码在载玻片上的位置是已知的。</li>
+                    <li><strong>Releasing mRNA from the tissue（从组织中释放 mRNA）.</strong> 当组织被处理时，mRNA 分子被释放并被正下方斑点上的 DNA 条形码捕获。</li>
+                    <li><strong>Sequencing and spatial mapping（测序和空间定位）.</strong> 然后对捕获的 mRNA 进行测序。 由于每个 mRNA 分子都标有来自特定斑点的条形码，因此研究人员不仅可以确定 *哪些* 基因被表达，还可以确定这些基因在组织中的 *位置*。</li>
+                </ol>
+                在 Visium 中，每个“spot（点）”并非达到单细胞分辨率；它通常捕获来自 10-100 个细胞区域的 mRNA。 然后，将此 aggregate profile（聚合谱）与相应位置的苏木精和伊红 (H&E) 染色的组织学图像对齐。
+            </p>
+        </div>
+        <p>
+            现有的方法，如 <span class="highlight">BLEEP</span> 和 <span class="highlight">mclSTExp</span>，已经被开发出来用于使用 <span class="highlight">contrastive loss（对比损失）</span> 对齐病理图像和 spatial gene expression profiles。 这些方法和 HEST 研究本身都证明了使用病理学 foundation models 完成此任务的好处。 然而，PathOmCLIP 通过以下新颖元素的组合而脱颖而出：
+        </p>
+        <ul>
+            <li><strong>Simultaneous use of single-cell and pathology foundation models（同时使用单细胞和病理学基础模型）:</strong> 利用来自两种模态的 foundation models 的优势。</li>
+            <li><strong>Locally contextualized transformer model（局部语境化的 Transformer 模型）:</strong> 应用 <span class="highlight">LocalTransformer</span> 来专门建模组织学图像中的空间语境，并改进基因表达预测。 这是一种之前的方法中未曾出现的新颖方法。</li>
+        </ul>
+
+        <h2>3. 方法：解构 PathOmCLIP</h2>
+        <p>
+            本节详细介绍了 PathOmCLIP 的数据、预处理步骤以及架构和训练方法。
+        </p>
+
+        <h3>3.1 数据和预处理</h3>
+        <p>
+            本研究使用了 <span class="highlight">HEST benchmarking 10x Visium dataset（HEST 基准测试 10x Visium 数据集）</span> 的 July 版本。 该数据集专门用于评估从组织学图像预测 spatial transcriptomics 的方法。 它包括：
+        </p>
+        <ul>
+            <li><strong>224x224 H&E stained image patches（224x224 H&E 染色图像切片）:</strong> 每个切片代表 112x112 μm 的组织区域。 H&E 染色是一种标准的组织学染色方法，用于可视化组织形态。</li>
+            <li><strong>Matched spatial gene expression data（匹配的空间基因表达数据）:</strong> 在组织切片上相应空间位置（spots，点）测量的基因表达谱。</li>
+        </ul>
+        <p>
+            该数据集涵盖 <span class="highlight">五种肿瘤类型</span>：
+        </p>
+        <ul>
+            <li>Clear cell renal cell carcinoma (ccRCC)（透明细胞肾细胞癌） - 肾癌</li>
+            <li>Prostate adenocarcinoma (PRAD)（前列腺腺癌） - 前列腺癌</li>
+            <li>Rectal adenocarcinoma (READ)（直肠腺癌） - 直肠癌</li>
+            <li>Pancreatic adenocarcinoma (PAAD)（胰腺腺癌） - 胰腺癌</li>
+            <li>Colonic adenocarcinoma (COAD)（结肠腺癌） - 结肠癌</li>
+        </ul>
+        <p>
+            作者遵守了 HEST 提供的 <span class="highlight">patient-stratified training and test splits（患者分层的训练集和测试集）</span>。 这对于防止 <span class="highlight">data leakage（数据泄露）</span> 至关重要，数据泄露是指测试集中的信息无意中影响了训练过程，从而导致人为地夸大了性能指标。 患者分层确保来自同一患者的数据不会在训练集和测试集之间分割。
+        </p>
+        <p>
+            预处理步骤包括：
+        </p>
+        <ul>
+            <li><strong>Log transformation of raw gene expression counts（原始基因表达计数的对数转换）:</strong> 基因表达分析中的常用做法，用于稳定方差并使数据更接近正态分布。</li>
+            <li><strong>Gene symbol unification（基因符号统一）:</strong> 确保数据集中相同肿瘤类型内的基因名称一致。</li>
+            <li><strong>Image normalization for GigaPath（GigaPath 的图像归一化）:</strong> 使用预训练的 GigaPath 模型所需的均值和标准差值对原始 224x224 图像进行归一化。 这确保了与 foundation model 的输入要求的兼容性。</li>
+            <li><strong>scFoundation input preparation（scFoundation 输入准备）:</strong> 添加零表达基因以匹配 scFoundation 要求的输入基因符号。 然后将对数转换和计数归一化的基因表达数据传递到 scFoundation 中，并将 <span class="highlight">target resolution（目标分辨率）设置为 5</span>。 调整此分辨率参数是为了解决在 10X Visium 空间数据中经常看到的比单细胞 RNA-seq 数据更高的总基因计数。</li>
+            <li><strong>Preparation of Highly Variable Genes (HVGs)（高变异基因 (HVG) 的准备）:</strong> 准备了不同数量的 <span class="highlight">Highly Variable Genes (HVGs)</span> 用于测试模型在不同基因谱复杂程度下的性能。 这包括使用 HEST 提供的 50 个 HVG，以及使用 `scanpy` 包（一种流行的单细胞数据分析工具）生成其他 HVG 集（200、500、1000、2000）。 `scanpy.pp.highly_variable_genes` 中的 `batch_key` 参数设置为指示玻片，确保在每种肿瘤类型的不同玻片中一致地识别 HVG。</li>
+        </ul>
+
+        <h3>3.2 PathOmCLIP：两阶段训练方法 (<span class="figure-ref">Figure 1</span>)</h3>
+        <p>
+            PathOmCLIP 的训练过程分为两个不同的阶段，如 <span class="figure-ref">Figure 1</span> 所示。 这种两阶段方法可以有效地学习多模态嵌入并进行后续的基因表达预测。
+        </p>
+        <ol>
+            <li><strong>阶段 1：通过 LocalCLIP 学习多模态嵌入 (<span class="figure-ref">Figure 1a</span>)</strong>
+                <p>
+                    第一阶段的重点是训练 <span class="highlight">LocalCLIP</span> 组件，为病理图像和空间基因表达谱创建共享的嵌入空间。 这是通过对比学习实现的。
+                </p>
+                <ul>
+                    <li><strong>Input Embeddings（输入嵌入）:</strong>
+                        <p>
+                            - <strong>Gene Expression Embeddings (<span class="highlight">HG</span>)（基因表达嵌入）：</strong> 对于每个具有基因表达谱 (<span class="highlight">X</span>) 的空间点，<span class="highlight">single-cell foundation model (scFoundation)（单细胞基础模型 (scFoundation)）</span> 用作编码器 (<span class="highlight">fgene</span>)，将 M 维归一化基因表达向量投影到低维 (h 维) 基因表达嵌入空间。 数学上，<span class="highlight">HG = fgene(X) ∈ ℝ<sup>1×h</sup></span>。
+                        </p>
+                        <p>
+                            - <strong>Pathology Patch Embeddings (<span class="highlight">HP</span>)（病理切片嵌入）：</strong> 对于每个病理图像切片 (<span class="highlight">V</span>)，<span class="highlight">pathology foundation model (GigaPath)（病理学基础模型 (GigaPath)）</span> 用作编码器 (<span class="highlight">fpath</span>)，将图像切片（C 个通道，例如 RGB）投影到 d 维图像嵌入空间。 数学上，<span class="highlight">HP = fpath(V) ∈ ℝ<sup>1×d</sup></span>。
+                        </p>
+                    </li>
+                    <li><strong>LocalTransformer for Contextualization（用于语境化的 LocalTransformer）:</strong>
+                        <p>
+                            提取的病理切片嵌入 (<span class="highlight">HP</span>) 然后被馈送到 <span class="highlight">LocalTransformer</span> 模块。 LocalTransformer 的目的是整合来自周围图像切片的 <span class="highlight">local neighborhood information（局部邻域信息）</span>。
+                        </p>
+                        <p>
+                            - <strong>K-Nearest Neighbors (k-NN)（K 近邻 (k-NN)）:</strong> 对于每个查询图像切片 <span class="highlight">V</span>，根据其在原始全玻片图像中的位置坐标，识别出其 <span class="highlight">k</span> 个最近邻图像切片。 令 <span class="highlight">𝒮P = {HP, H1, H2, …, HK}</span> 为 <span class="highlight">K</span> 个图像嵌入特征的集合，包括查询切片自身的嵌入 (<span class="highlight">HP</span>) 及其 <span class="highlight">k</span> 个最近邻的嵌入 (<span class="highlight">H1, H2, …, HK</span>)。
+                        </p>
+                        <p>
+                            - <strong>Transformer Aggregation（Transformer 聚合）:</strong> 集合 <span class="highlight">𝒮P</span> 被输入到 LocalTransformer，这是一个标准的 Transformer 架构。 Transformer 处理这些嵌入，为查询切片 <span class="highlight">V</span> 生成 <span class="highlight">contextualized image embedding（语境化的图像嵌入）</span> (<span class="highlight">HCP</span>)。 重要的是，作者指出他们 <span class="highlight">没有向输入嵌入添加位置编码</span>。 这种设计选择使模型 <span class="highlight">对切片的绝对位置不变</span>，并将输入嵌入视为一组邻域特征。 仅使用与查询图像 <span class="highlight">V</span> 相对应的语境化嵌入 <span class="highlight">HCP</span>； 来自 k-NN 图像的嵌入在语境化过程后被丢弃。 针对batch中的 N 个图像重复进行 LocalTransformer 以获得 batch-level embeddings（批次级嵌入）。
+                        </p>
+                    </li>
+                    <li><strong>Contrastive Loss with InfoNCE（使用 InfoNCE 的对比损失）:</strong>
+                        <p>
+                            为了对齐来自配对空间点和图像切片的基因表达嵌入 (<span class="highlight">HG</span>) 和语境化图像嵌入 (<span class="highlight">HCP</span>)，作者采用了 <span class="highlight">contrastive loss（对比损失）</span>，特别是 <span class="highlight">InfoNCE (Info Noise-Contrastive Estimation) loss（InfoNCE（信息噪声对比估计）损失）</span>。
+                        </p>
+                        <div class="concept-explanation">
+                            <h4 class="concept-title">InfoNCE Loss 解释</h4>
+                            <p>InfoNCE 损失是一个流行的对比损失函数，用于各种自监督和多模态学习任务。 它的工作原理是：
+                                <ol>
+                                    <li><strong>Creating "positive" and "negative" pairs（创建“正”和“负”对）.</strong> 在本例中，“正”对是匹配的组织学图像切片及其对应的空间基因表达谱。“负”对是不匹配的组合。</li>
+                                    <li><strong>Learning to distinguish positive from negative pairs（学习区分正对和负对）.</strong> 训练模型以最大化正对嵌入之间的相似性（例如，余弦相似性），并最小化负对嵌入之间的相似性。</li>
+                                    <li><strong>Noise Contrastive Estimation（噪声对比估计）.</strong> InfoNCE 基于噪声对比估计的思想，其中“噪声”是负对的集合。 损失函数鼓励模型学习嵌入，这些嵌入可以有效地将真正的正对与嘈杂的负对“对比”开来。</li>
+                                </ol>
+                            </p>
+                        </div>
+                        <p>
+                            PathOmCLIP 中使用的 InfoNCE 损失被设计为最大化给定其对应图像嵌入 <span class="highlight">HCP</span> 的空间点基因表达嵌入 <span class="highlight">HG</span> 的后验概率，反之亦然（给定基因表达嵌入的图像嵌入的后验概率）。 本文中的 <span class="figure-ref">Equation 2</span> 可能显示了使用余弦相似度和温度参数 (<span class="highlight">τ</span>) 计算这些后验概率的公式，温度参数用于控制对比分布的锐度。 <span class="figure-ref">Equation 3</span> 然后将这两个概率组合成 LocalCLIP 训练的最终损失函数。 温度参数 <span class="highlight">τ</span> 是一个超参数，它缩放余弦相似度分数，影响模型需要对正对有多“自信”才能最小化损失。
+                        </p>
+                    </li>
+                    <li><strong>Trainable Components in Stage 1（阶段 1 中的可训练组件）:</strong> 在阶段 1 LocalCLIP 训练期间，只有 <span class="highlight">pathology foundation model (GigaPath)（病理学基础模型 (GigaPath)）</span> 和 <span class="highlight">LocalTransformer</span> 模块被设置为可训练。 <span class="highlight">single-cell foundation model (scFoundation)（单细胞基础模型 (scFoundation)）</span> 保持冻结（在训练期间不更新）。 这种迁移学习方法利用了 scFoundation 中预先学习的表示，而无需在阶段 1 中对其进行修改。</li>
+                </ul>
+            </li>
+            <li><strong>阶段 2：使用 LocalTransformer 推断表达谱 (<span class="figure-ref">Figure 1b</span>)</strong>
+                <p>
+                    第二阶段的重点是直接训练 <span class="highlight">LocalTransformer</span> 以执行 spatial gene expression prediction（空间基因表达预测）任务。 它利用了来自阶段 1 的预训练 <span class="highlight">LocalCLIP 模型</span> 作为特征提取器。
+                </p>
+                <ul>
+                    <li><strong>Input Features（输入特征）:</strong>  <span class="highlight">contextualized image features (HCP)（语境化的图像特征 (HCP)）</span> 从预训练的 LocalCLIP 模型（来自阶段 1）获得。</li>
+                    <li><strong>LocalTransformer for Prediction（用于预测的 LocalTransformer）:</strong> 应用另一轮 <span class="highlight">LocalTransformer</span>。 与阶段 1 类似，此 LocalTransformer 使用 <span class="highlight">local neighborhood information（局部邻域信息）</span>，进一步语境化图像嵌入，专门用于基因表达预测任务。</li>
+                    <li><strong>MLP Prediction Head（MLP 预测头）:</strong>  在 LocalTransformer 的输出之上添加了一个单层 <span class="highlight">Multi-Layer Perceptron (MLP)（多层感知器 (MLP)）</span>。 此 MLP 充当 <span class="highlight">prediction head（预测头）</span>，将 d 维语境化嵌入映射到 M 维基因表达空间 (<span class="highlight">ℝ<sup>d</sup> → ℝ<sup>M</sup></span>)，有效地推断基因表达谱 (<span class="highlight">Xpred</span>)。</li>
+                    <li><strong>MSE Loss for Training（用于训练的 MSE 损失）:</strong>  阶段 2 中的模型通过最小化 <span class="highlight">Mean Squared Error (MSE) loss（均方误差 (MSE) 损失）</span>（在 <span class="highlight">predicted gene expression (Xpred)（预测的基因表达 (Xpred)）</span> 和 <span class="highlight">ground truth gene expression (X)（真实基因表达 (X)）</span> 之间）进行训练。 <span class="figure-ref">Equation 4</span> 可能显示了 MSE 损失公式。</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h3>3.3 用于比较的基线方法</h3>
+        <p>
+            为了严格评估 PathOmCLIP 的性能，作者将其与几种已建立的基线方法进行了比较：
+        </p>
+        <ul>
+            <li><strong>BLEEP 和 mclSTExp:</strong> 这些是现有的 state-of-the-art model（最先进的模型），专门设计用于 <span class="highlight">从病理图像预测 spatial expression profiles（空间表达谱）</span>。 BLEEP 和 mclSTExp 都利用 <span class="highlight">contrastive loss（对比损失）</span> 对齐病理图像和空间基因表达，这在原则上类似于 PathOmCLIP 中的 LocalCLIP。 mclSTExp 进一步增强了对齐前的空间表达编码。 然而，一个关键的区别是 <span class="highlight">BLEEP 和 mclSTExp 没有利用预训练的病理学 foundation models</span>。 它们通常使用从头开始训练的图像编码器，或在自然图像数据集（如 ImageNet）上预训练的图像编码器，这些编码器对于病理图像的专业性较低。</li>
+            <li><strong>GigaPath-FT (Fine-Tuned GigaPath)（GigaPath-FT（微调的 GigaPath））:</strong> 为了专门评估 PathOmCLIP 的多模态方法和 LocalTransformer 与仅利用病理学 foundation model 相比的优势，作者包括了一个 <span class="highlight">directly fine-tuned GigaPath model（直接微调的 GigaPath 模型）</span> 作为强大的基线。 在 GigaPath-FT 中：
+                <ul>
+                    <li><span class="highlight">entire GigaPath tile encoder（整个 GigaPath 切片编码器）</span>（GigaPath 中处理图像切片的部分）被微调。</li>
+                    <li>在 GigaPath 编码器之上添加了一个 <span class="highlight">linear head（线性头）</span>（一个简单的线性层），用于直接 <span class="highlight">gene expression prediction（基因表达预测）</span>。</li>
+                    <li>对模型进行端到端训练，以最小化预测误差。</li>
+                </ul>
+                GigaPath-FT 代表了一种强大的方法，它利用了强大的病理学 foundation model，但没有 PathOmCLIP 的多模态对比学习和局部语境建模。</li>
+        </ul>
+        <p>
+            为了进行公平的比较，作者确保：
+        </p>
+        <ul>
+            <li><strong>Consistent Datasets（一致的数据集）:</strong>  所有模型都在 <span class="highlight">相同的预处理数据集</span> 上进行训练和评估。 对于 BLEEP 和 mclSTExp，他们使用了与 PathOmCLIP 相同的预处理，包括对数转换和基因符号统一，而没有执行批次去除（因为 PathOmCLIP 中也没有使用批次去除）。</li>
+            <li><strong>Default Parameters（默认参数）:</strong>  在适用的情况下，作者使用了原始出版物中为 BLEEP 和 mclSTExp 推荐的 <span class="highlight">default model parameters（默认模型参数）</span> 和训练设置。 这确保了与这些方法已建立的性能进行真实且公平的比较。 对于 mclSTExp，他们专门遵循了其数据处理步骤，以使用前 1000 个高变异基因作为输入特征空间，这符合 mclSTExp 的建议。</li>
+        </ul>
+
+        <h2>4. 结果：评估 PathOmCLIP 的性能</h2>
+        <p>
+            本节介绍实验结果，展示 PathOmCLIP 在预测空间解析基因表达谱方面的性能，并将其与基线方法进行比较。
+        </p>
+
+        <h3>4.1 PathOmCLIP 展示出卓越的预测准确性 (<span class="table-ref">Table 1</span>)</h3>
+        <p>
+            使用的主要评估指标是 <span class="highlight">Pearson Correlation Coefficient (PCC)（皮尔逊相关系数 (PCC)）</span>。 PCC 衡量两组数据之间的线性相关性——在本例中，是 <span class="highlight">predicted gene expression profiles（预测的基因表达谱）</span> 和 <span class="highlight">experimentally measured (ground truth) gene expression（实验测量的（真实值）基因表达）</span>。 PCC 值越高，线性正相关性越强，这意味着预测的表达谱与实际谱越相似。
+        </p>
+        <p>
+            通过比较测试数据集中所有样本的平均 PCC，将 PathOmCLIP 与 BLEEP、mclSTExp 和 GigaPath-FT 进行了基准测试。 评估是在不同数量的 <span class="highlight">Highly Variable Genes (HVGs)（高变异基因 (HVG)）</span>（50、200、500、1000 和 2000）上进行的。 使用不同 HVG 计数进行测试非常重要，因为：
+        </p>
+        <ul>
+            <li><strong>Practical Applications（实际应用）:</strong> 虽然之前的许多研究都集中在预测少量 top HVGs（例如，50 个），但实际应用通常需要预测更全面的基因表达谱，包括更大数量的基因。</li>
+            <li><strong>Foundation Model Behavior（基础模型行为）:</strong> Foundation models 具有庞大的容量，在预测少量基因与预测大量基因时，可能会表现出不同的性能特征。 评估它们在不同目标基因复杂程度下的行为至关重要。</li>
+        </ul>
+        <p>
+            结果总结在 <span class="table-ref">Table 1</span> 中。
+        </p>
+        <div class="table-container">
+            <table>
+                <caption>表 1：预测空间基因表达与真实表达的平均皮尔逊相关系数 (PCC)</caption>
+                <thead>
+                    <tr>
+                        <th>模型</th>
+                        <th>50 个 HVG</th>
+                        <th>200 个 HVG</th>
+                        <th>500 个 HVG</th>
+                        <th>1000 个 HVG</th>
+                        <th>2000 个 HVG</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>PathOmCLIP</strong></td>
+                        <td><ins><strong>最高（论文中报告的值）</strong></ins></td>
+                        <td><ins><strong>最高（论文中报告的值）</strong></ins></td>
+                        <td><ins><strong>最高（论文中报告的值）</strong></ins></td>
+                        <td><ins><strong>最高（论文中报告的值）</strong></ins></td>
+                        <td><ins><strong>最高（论文中报告的值）</strong></ins></td>
+                    </tr>
+                    <tr>
+                        <td>GigaPath-FT (微调的 GigaPath)</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                    <tr>
+                        <td>mclSTExp</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                    <tr>
+                        <td>BLEEP</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p>
+            <span class="highlight">表 1 的主要发现：</span>
+            <ul>
+                <li><span class="highlight">PathOmCLIP 在所有测试的 HVG 数量（50、200、500、1000、2000）中始终优于所有其他模型</span>。 这证明了 PathOmCLIP 在预测空间基因表达准确性方面的总体优势。</li>
+                <li><span class="highlight">GigaPath-FT 在许多情况下超过了 BLEEP 和 mclSTExp</span>，尤其是对于较低的 HVG 计数。 这突出了使用病理学 foundation model (GigaPath) 相对于不利用此类预训练表示的模型的优势。</li>
+                <li>然而，当考虑大量 HVG 时（例如，2000 个 HVG），<span class="highlight">mclSTExp 略微优于 GigaPath-FT</span>。 这表明，当预测更复杂的基因表达谱时，mclSTExp（和 PathOmCLIP）中使用的对比训练方法变得更加有益。 这可能表明仅依靠病理图像特征（如 GigaPath-FT 中那样）来预测非常详细的表达谱存在局限性。</li>
+            </ul>
+            总的来说，<span class="highlight">表 1 强烈支持 PathOmCLIP 的有效性</span>，突出了其组合方法的优势：利用病理学和单细胞 foundation models，并结合 LocalCLIP 和 LocalTransformer 架构。
+        </p>
+
+        <h3>4.2 PathOmCLIP 有效地保留了空间表达模式 (<span class="figure-ref">Figure 2</span>)</h3>
+        <p>
+            虽然高 PCC 分数表明整体预测准确性良好，但评估模型是否正确捕获了组织内细胞之间的 <span class="highlight">spatial relationships（空间关系）</span> 也至关重要。 模型可能通过很好地预测平均表达水平来获得高 PCC，但未能重现基因表达的空间组织。 为了评估空间模式的保留，作者使用了一种基于聚类的方法。
+        </p>
+        <p>
+            <span class="highlight">空间模式评估的方法：</span>
+            <ol>
+                <li><strong>Clustering of Spot Profiles（点谱聚类）:</strong> 对于真实值（实验测量的）和预测的基因表达谱，研究人员都进行了 <span class="highlight">Leiden clustering（Leiden 聚类）</span>。 Leiden 聚类是一种基于图的聚类算法，常用于单细胞和 spatial transcriptomics 分析，以识别具有相似表达谱的点（或细胞）组。 使用不同的目标聚类数（5、10 和 15）进行聚类，以评估在不同粒度级别上的鲁棒性。</li>
+                <li><strong>Adjusted Mutual Information (AMI)（调整互信息 (AMI)）:</strong> 为了量化从真实值和预测表达谱获得的聚类分配之间的相似性，使用了 <span class="highlight">Adjusted Mutual Information (AMI) score（调整互信息 (AMI) 分数）</span>。
+                    <div class="concept-explanation">
+                        <h4 class="concept-title">调整互信息 (AMI) 解释</h4>
+                        <p>AMI 是用于衡量两个聚类之间相似性的指标。 它量化了两个聚类分配之间共享的信息量，同时还调整了偶然一致性。 AMI 分数为 1 表示聚类之间完全一致，而接近 0 的分数表示一致性不比随机机会好多少。 在这种情况下，较高的 AMI 分数意味着预测表达谱中识别的空间聚类与真实表达谱中的空间聚类更相似，表明空间模式的保留性更好。</p>
+                    </div>
+                </li>
+            </ol>
+        </p>
+        <p>
+            AMI 分析的结果显示在 <span class="figure-ref">Figure 2a</span> 中。
+        </p>
+        <div style="text-align: center;">
+            <!-- Figure 2a (AMI Scores) 的占位符 -->
+            [Figure 2a Description: 条形图，显示 PathOmCLIP、GigaPath-FT 和 mclSTExp 在不同聚类数（5、10、15）下的 AMI 分数。 PathOmCLIP 在所有聚类数下始终具有最高的 AMI 分数。]
+            <p class="figure-ref">Figure 2a：预测表达与真实表达聚类的 AMI 分数</p>
+        </div>
+        <p>
+            <span class="highlight">Figure 2a 的主要发现：</span>
+            <ul>
+                <li><span class="highlight">PathOmCLIP 在所有方法（GigaPath-FT 和 mclSTExp）中都获得了最高的 AMI 分数</span>，在所有测试的聚类数（5、10、15）下。 这表明 PathOmCLIP 不仅在 PCC 方面准确地预测基因表达，而且还更好地保留了组织内基因表达模式的空间组织。</li>
+            </ul>
+        </p>
+        <p>
+            为了进一步可视化空间模式的保留，<span class="figure-ref">Figure 2b</span> 展示了覆盖在病理图像上的 Leiden 聚类分配，包括真实值、GigaPath-FT、mclSTExp 和 PathOmCLIP。
+        </p>
+        <div style="text-align: center;">
+            <!-- Figure 2b (Spatial Clustering Visualization) 的占位符 -->
+            [Figure 2b Description: 病理图像网格，每个图像都叠加了颜色不同的 Leiden 聚类分配。 行代表不同的方法（真实值、GigaPath-FT、mclSTExp、PathOmCLIP）。 列可能代表不同的组织切片或区域。 视觉检查显示 PathOmCLIP 的聚类模式与真实值的空间模式最相似，而 GigaPath-FT 和 mclSTExp 显示的空间连贯性或相似性较差。]
+            <p class="figure-ref">Figure 2b：Leiden 聚类分配的空间可视化</p>
+        </div>
+        <p>
+            <span class="highlight">Figure 2b 的主要发现：</span>
+            <ul>
+                <li><span class="highlight">Visual Similarity to Ground Truth（与真实值的视觉相似性）:</span>  通过视觉比较聚类图，很明显 PathOmCLIP 的空间聚类模式与真实值模式非常相似。 PathOmCLIP 预测中的颜色分布和聚类空间排列与实验测量数据中的颜色分布和聚类空间排列非常相似。</li>
+                <li><span class="highlight">GigaPath-FT and mclSTExp Show Less Spatial Coherence（GigaPath-FT 和 mclSTExp 显示出较少的空间连贯性）:</span> 相比之下，GigaPath-FT 和 mclSTExp 的聚类图看起来空间连贯性较差，并且与真实值相似度较低。 虽然 GiaPath-FT 可能获得相当高的 PCC（如 <span class="table-ref">Table 1</span> 所示），但这并不一定转化为组织中细胞之间空间关系的准确保留。 mclSTExp 虽然也采用了对比训练，但在空间保真度方面也逊色于 PathOmCLIP。</li>
+            </ul>
+            作者得出结论，驱动 PathOmCLIP 卓越空间模式保留的关键区别在于应用于图像嵌入的 <span class="highlight">LocalTransformer module（LocalTransformer 模块）</span>。 虽然 mclSTExp 也具有用于编码邻域信息的模块，但它应用于 <span class="highlight">expression profiles（表达谱）</span> 而不是图像嵌入。 结果表明，显式地建模 <span class="highlight">image modality（图像模态）</span> 内的局部空间语境（如 PathOmCLIP 中所做的那样）对于实现高预测精度 (PCC) 和良好维护的空间信息 (AMI、视觉相似性) 至关重要。
+        </p>
+
+        <h3>4.3 单独使用病理学 Foundation Model 不足以捕获精细的表达模式 (<span class="figure-ref">Figure 3</span>)</h3>
+        <p>
+            正如在 <span class="table-ref">Table 1</span> 中观察到的，微调病理学 foundation model (GigaPath-FT) 确实提高了性能，与 BLEEP 和 mclSTExp 相比，但这仍然不足以达到 PathOmCLIP 实现的更高性能水平。 这表明，虽然病理图像特征信息丰富，但仅依赖它们不足以捕获空间基因表达模式的全部复杂性。
+        </p>
+        <p>
+            为了进一步研究这一点，作者分析了在 ccRCC（透明细胞肾细胞癌）中 GigaPath-FT 和 PathOmCLIP 预测性能差异最显著的基因。 <span class="figure-ref">Figure 3a</span> 突出显示了在这两个模型之间 PCC 差异最大的前十个基因。
+        </p>
+        <div style="text-align: center;">
+            <!-- Figure 3a (Genes with PCC Difference) 的占位符 -->
+            [Figure 3a Description: 条形图，显示 PathOmCLIP 和 GigaPath-FT 之间 PCC 差异最大的前 10 个基因的差异。 列出的基因可能是 LY6E、STK39、NOTCH3、EGFL7、HTRA1 以及其他与细胞增殖或血管生成相关的基因。 误差条表示 95% 置信区间。]
+            <p class="figure-ref">Figure 3a：PathOmCLIP 和 GigaPath-FT 之间 PCC 差异显著的基因</p>
+        </div>
+        <p>
+            <span class="highlight">Figure 3a 的主要发现：</span>
+            <ul>
+                <li><span class="highlight">Tumor-Relevant Genes（肿瘤相关基因）:</span>  被确定为在 GigaPath-FT 和 PathOmCLIP 之间预测差异显著的基因，显著富集于在肿瘤生物学中具有重要作用的基因。 正文中提到的例子是与以下方面相关的基因：
+                    <ul>
+                        <li><strong>Cell proliferation（细胞增殖）:</strong>  LY6E, STK39, NOTCH3</li>
+                        <li><strong>Angiogenesis (blood vessel formation)（血管生成（血管形成））:</strong> EGFL7, HTRA1</li>
+                    </ul>
+                    血管生成和细胞增殖是癌症发生和发展的标志性过程。</li>
+                <li><span class="highlight">Biological Relevance（生物学相关性）:</span>  PathOmCLIP 在这些生物学相关基因上的改进比 GigaPath-FT 更显著，这一事实表明 PathOmCLIP 正在捕获与肿瘤生物学相关的、更细致入微且可能更具临床意义的空间基因表达方面。</li>
+            </ul>
+        </p>
+        <p>
+            <span class="figure-ref">Figure 3b</span> 直观地比较了两个示例基因 EGFL7 和 STK39 在组织空间中的预测表达模式，包括真实值、GigaPath-FT 和 PathOmCLIP。
+        </p>
+        <div style="text-align: center;">
+            <!-- Figure 3b (Spatial Expression Visualization) 的占位符 -->
+            [Figure 3b Description: 热图网格，显示 EGFL7 和 STK39 的空间表达模式。 行是基因（EGFL7、STK39）。 列是方法（真实值、GigaPath-FT、PathOmCLIP）。 颜色强度表示对数转换后的基因表达水平。 对于 EGFL7 和 STK39，GigaPath-FT 显示组织中更均匀的表达模式，而 PathOmCLIP 的预测显示出更多的空间变异，并且在视觉上与真实值模式更相似。]
+            <p class="figure-ref">Figure 3b：EGFL7 和 STK39 的真实值和预测基因表达谱可视化</p>
+        </div>
+        <p>
+            <span class="highlight">Figure 3b 的主要发现：</span>
+            <ul>
+                <li><span class="highlight">GigaPath-FT Predicts Uniform Expression（GigaPath-FT 预测均匀表达）:</span> 对于像 EGFL7 和 STK39 这样的基因，GigaPath-FT 倾向于预测整个组织区域内相对均匀的表达水平。 它未能捕获表达中的空间变异。</li>
+                <li><span class="highlight">PathOmCLIP Distinguishes Spatial Expression（PathOmCLIP 区分空间表达）:</span> 相比之下，PathOmCLIP 成功区分了这些基因表达中的空间差异。 其预测的表达模式显示出更多的空间变异，并且在视觉上与测量的真实表达图谱更加一致。 它捕获了组织内较高和较低表达的区域，与实际的空间分布更好地对齐。</li>
+            </ul>
+            <span class="figure-ref">Figure 3</span> 中的这些可视化和基因水平分析进一步加强了以下结论：虽然病理图像特征很有价值，但单独使用病理学 foundation model（如 GigaPath-FT）不足以捕获基因表达的完整空间复杂性。 PathOmCLIP 通过结合多模态信息和局部语境，提供了更精细和生物学相关的空间基因表达谱预测。
+
+        <h3>4.4 消融研究揭示了 LocalCLIP 和单细胞 Foundation Model 的重要性 (<span class="table-ref">Tables 2 & 3</span>)</h3>
+        <p>
+            为了系统地剖析 PathOmCLIP 中不同设计选择的贡献，作者进行了消融研究。 消融研究涉及选择性地删除或修改模型的组件，以评估其对性能的影响。 在本例中，他们研究了以下方面的作用：
+        </p>
+        <ul>
+            <li><strong>LocalTransformer:</strong> 用于捕获局部邻域语境的模块。</li>
+            <li><strong>CLIP Loss (Contrastive Loss):</strong> 用于对齐图像和基因表达嵌入的对比学习目标。</li>
+            <li><strong>Single-Cell Foundation Model (scFoundation):</strong> 用作基因表达编码器的预训练模型。</li>
+        </ul>
+        <p>
+            <span class="table-ref">Table 2</span> 总结了消融研究的结果，该研究侧重于不同的对比损失策略和基因表达编码器，使用 5 折交叉验证在 ccRCC 测试集上针对 50 个 HVG 进行了评估。
+        </p>
+        <div class="table-container">
+            <table>
+                <caption>表 2：消融研究 - 对比损失和基因表达编码器 (50 个 HVG，ccRCC 上的 5 折 CV)</caption>
+                <thead>
+                    <tr>
+                        <th>模型变体</th>
+                        <th>描述</th>
+                        <th>平均 PCC</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>PathOmCLIP (完整模型)</strong></td>
+                        <td>LocalCLIP + scFoundation 编码器 + LocalTransformer 预测</td>
+                        <td><ins><strong>最高（论文中报告的值）</strong></ins></td>
+                    </tr>
+                    <tr>
+                        <td>GigaPath + LT (LocalTransformer pred)</td>
+                        <td>GigaPath 图像编码器 + LocalTransformer 预测（无 CLIP 损失，无 scFoundation）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                    <tr>
+                        <td>GigaPath + Ridge Regression</td>
+                        <td>GigaPath 图像编码器 + Ridge Regression 用于预测（无 LocalTransformer，无 CLIP 损失，无 scFoundation）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                    <tr>
+                        <td>BLocalCLIP (双模态 LocalCLIP)</td>
+                        <td>应用于图像和空间基因表达的 LocalCLIP，用于 CLIP 训练（scFoundation 编码器，LocalTransformer 预测）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                    <tr>
+                        <td>Naive GigaPath Model（朴素 GigaPath 模型）</td>
+                        <td>直接使用 GigaPath 嵌入，无需进一步训练（用于比较）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p>
+            <span class="highlight">Table 2 的主要发现 (50 个 HVG)：</span>
+            <ul>
+                <li><span class="highlight">LocalTransformer Improves Performance（LocalTransformer 提高性能）:</span> 与仅使用朴素 GigaPath 模型 (Ridge Regression) 相比，添加 LocalTransformer 模块 (GigaPath + LT) 略微提高了性能。 这表明，即使没有对比学习或单细胞 foundation model，结合局部语境也能提供一些好处。</li>
+                <li><span class="highlight">CLIP Loss Provides a Significant Boost（CLIP 损失提供显著提升）:</span> 在 LocalTransformer 之上加入 CLIP 损失（PathOmCLIP 完整模型 vs. GigaPath + LT）带来了显著的性能提升。 这突出了对比学习在有效对齐图像和基因表达模态以及学习共享嵌入空间中的关键作用。</li>
+                <li><span class="highlight">scFoundation Benefit Less Clear at 50 HVGs（在 50 个 HVG 下，scFoundation 的优势不太明显）:</span>  在 50 个 HVG 下，使用 single-cell foundation model (scFoundation) 或 LocalCLIP（整合了 scFoundation）的优势不太明显。 事实上，与 50 个 HVG 的更简单模型相比，使用 scFoundation 或 LocalCLIP 时，性能似乎略有 *下降*。 作者推测这可能是由于 <span class="highlight">overfitting（过拟合）</span>。 对于一小部分 50 个 HVG，更简单的模型（如 MLP，在某些消融变体中使用，但未在表 2 的描述中明确显示）可能就足够了，甚至更好，因为其复杂性较低，并且降低了对有限数据过拟合的风险。</li>
+                <li><span class="highlight">Applying LocalCLIP to Both Modalities is Detrimental（将 LocalCLIP 应用于两种模态都是有害的）:</span>  将 LocalCLIP 应用于 *both* 图像和空间基因表达模态 (BLocalCLIP) 会损害性能。 这表明图像和表达数据之间局部相似性的本质不同。 作者假设 <span class="highlight">pathology images have higher local similarity than spatial gene expression（病理图像比空间基因表达具有更高的局部相似性）</span>。 因此，主要在图像模态上引导局部增强特征（如 PathOmCLIP 中那样）更有效。 以相同方式将局部语境应用于表达谱可能没有那么有益，甚至可能引入噪声。</li>
+            </ul>
+        </p>
+        <p>
+            <span class="table-ref">Table 3</span> 通过测试 LocalTransformer 和单细胞 foundation model 在更广泛的 HVG 计数范围（50、200、500、1000、2000）下对 ccRCC 测试集的影响，扩展了消融研究。 此表专门比较了在对比损失阶段 (LocalCLIP) 中是否使用 LocalTransformer 的模型，以及使用 single-cell foundation model (scF) 或简单 MLP 作为基因表达编码器的模型。
+        </p>
+        <div class="table-container">
+            <table>
+                <caption>表 3：消融研究 - LocalTransformer、scFoundation 和 HVG 计数（ccRCC 测试集）</caption>
+                <thead>
+                    <tr>
+                        <th rowspan="2">模型变体</th>
+                        <th rowspan="2">基因表达编码器</th>
+                        <th colspan="5">跨 HVG 计数的平均 PCC</th>
+                    </tr>
+                    <tr>
+                        <th>50 个 HVG</th>
+                        <th>200 个 HVG</th>
+                        <th>500 个 HVG</th>
+                        <th>1000 个 HVG</th>
+                        <th>2000 个 HVG</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>PathOmCLIP (*)</strong></td>
+                        <td>scF (单细胞 foundation model)</td>
+                        <td>（论文中报告的值）</td>
+                        <td><ins><strong>最高（论文中报告的值）</strong></ins></td>
+                        <td><ins><strong>最高（论文中报告的值）</strong></ins></td>
+                        <td><ins><strong>最高（论文中报告的值）</strong></ins></td>
+                        <td><ins><strong>最高（论文中报告的值）</strong></ins></td>
+                    </tr>
+                    <tr>
+                        <td>LocalCLIP w/ MLP</td>
+                        <td>MLP</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                    <tr>
+                        <td>GigaPath + CLIP w/ scF</td>
+                        <td>scF</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                     <tr>
+                        <td>GigaPath + CLIP w/ MLP</td>
+                        <td>MLP</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p>
+            <span class="highlight">Table 3 的主要发现 (不同 HVG)：</span>
+            <ul>
+                <li><span class="highlight">scFoundation Becomes Increasingly Beneficial with More Genes（随着基因数量的增加，scFoundation 变得越来越有益）:</span> 随着目标基因（HVG）的数量增加到 50 个以上，使用 <span class="highlight">single-cell foundation model (scFoundation)</span> 作为基因表达编码器的优势变得越来越明显。 对于 200 个 HVG 及以上，使用 scFoundation 的模型始终优于使用更简单 MLP 编码器的模型。 这表明，为了预测更全面的基因表达谱，scFoundation 学习到的丰富表示至关重要。</li>
+                <li><span class="highlight">LocalCLIP Benefit Emerges with More Genes（LocalCLIP 的优势随着基因数量的增加而显现）:</span> <span class="highlight">LocalCLIP</span>（在对比损失阶段结合 LocalTransformer）的影响表现出相似的趋势。 虽然它可能会在 50 个 HVG 下略微损害性能（可能是由于模型复杂性增加和对小基因集过拟合风险增加，如表 2 所示），但当目标基因的数量增加到 200 个 HVG 及以上时，其优势变得明显。 PathOmCLIP（结合了 LocalCLIP 和 scFoundation）始终显示出比没有 LocalCLIP 的变体（GigaPath + CLIP w/ scF 和 GigaPath + CLIP w/ MLP）更好的性能，尤其是在 HVG 计数较高时。</li>
+                <li><span class="highlight">PathOmCLIP (LocalCLIP + scFoundation) Consistently Strongest at Higher HVGs（PathOmCLIP（LocalCLIP + scFoundation）在较高 HVG 下始终最强）:</span> 当 LocalCLIP 与 scFoundation 结合使用时 (PathOmCLIP)，它始终表现出最佳性能，尤其是在预测 200 个或更多 HVG 时。 这有力地支持了作者的设计选择：在 CLIP 训练前后都结合 LocalTransformer，并使用 scFoundation 作为基因组学编码器。</li>
+            </ul>
+            总之，<span class="table-ref">Tables 2 and 3</span> 中的消融研究为 <span class="highlight">LocalCLIP</span> 和 <span class="highlight">single-cell foundation model (scFoundation)</span> 对于实现 PathOmCLIP 的最佳性能至关重要提供了令人信服的证据，尤其是在预测更全面的空间基因表达谱时。 虽然对于非常有限的目标基因集（例如，50 个 HVG），更简单的模型可能足够甚至略微优于 PathOmCLIP，但随着基因表达预测任务的复杂性和范围增加，PathOmCLIP 的架构变得越来越有利。
+
+        <h3>4.5 PathOmCLIP 利用多模态信息来改进不同肿瘤类型的表示 (<span class="table-ref">Table 4</span>, <span class="figure-ref">Figure 4</span>)</h3>
+        <p>
+            为了评估 PathOmCLIP 的泛化能力以及使用 single-cell foundation model 的持续优势，作者将其评估扩展到了 ccRCC 之外的 <span class="highlight">四种额外的肿瘤类型</span>：前列腺腺癌 (PRAD)、直肠腺癌 (READ)、胰腺腺癌 (PAAD) 和结肠腺癌 (COAD)。
+        </p>
+        <p>
+            <span class="table-ref">Table 4</span> 展示了 PathOmCLIP 在这五种癌症类型中的空间基因表达推断性能，评估了不同的 HVG 计数（50、200、1000、2000）。
+        </p>
+        <div class="table-container">
+            <table>
+                <caption>表 4：PathOmCLIP 在不同癌症类型中的空间基因表达推断性能</caption>
+                <thead>
+                    <tr>
+                        <th>癌症类型</th>
+                        <th>50 个 HVG</th>
+                        <th>200 个 HVG</th>
+                        <th>1000 个 HVG</th>
+                        <th>2000 个 HVG</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>ccRCC (透明细胞肾细胞癌)</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                    <tr>
+                        <td>PRAD (前列腺腺癌)</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                    <tr>
+                        <td>READ (直肠腺癌)</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                    <tr>
+                        <td>PAAD (胰腺腺癌)</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>不适用（数据不可用）</td>
+                        <td>不适用（数据不可用）</td>
+                    </tr>
+                    <tr>
+                        <td>COAD (结肠腺癌)</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                        <td>（论文中报告的值）</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p>
+            <span class="highlight">Table 4 的主要发现（跨癌症类型性能）：</span>
+            <ul>
+                <li><span class="highlight">Consistent Benefit of scFoundation Across Tumor Types（scFoundation 在不同肿瘤类型中具有一致的优势）:</span> 与 ccRCC 中的发现类似，随着目标 HVG 数量在所有四种额外肿瘤类型（PRAD、READ、PAAD、COAD）中增加，结合 <span class="highlight">single-cell foundation model (scFoundation)</span> 通常被证明是有益的。 这表明使用 scFoundation 表示基因表达的优势并非 ccRCC 特有，而是可以推广到不同的癌症类型。</li>
+                <li><span class="highlight">Performance Variation Across Cancer Types（不同癌症类型之间的性能差异）:</span>  即使对于相同的 HVG 计数，不同癌症类型之间的性能（PCC 值）也存在一些差异。 这是预期的，因为不同的肿瘤类型具有不同的生物学特征，并且形态学和基因表达之间的相关程度可能有所不同。 数据的可用性和空间组织的复杂性也可能因肿瘤类型而异，从而影响预测性能。 （注意：PAAD 数据在较高 HVG 计数下不可用，可能是由于该肿瘤类型的数据集中捕获的基因不足）。</li>
+            </ul>
+        </p>
+        <p>
+            为了进一步理解 PathOmCLIP 中的多模态训练如何改进学习到的表示，作者使用 <span class="highlight">UMAP (Uniform Manifold Approximation and Projection)（均匀流形逼近和投影）</span> 可视化了从 PathOmCLIP 和 GigaPath 中提取的图像特征，UMAP 是一种降维技术，用于在 2D 中可视化高维数据。 <span class="figure-ref">Figure 4a</span> 显示了从 PathOmCLIP 的不同阶段和变体获得的图像特征的 UMAP 图，以及来自单独 GigaPath 和 scFoundation 的特征，针对十张 ccRCC 玻片。
+        </p>
+        <div style="text-align: center;">
+            <!-- Figure 4a (UMAP Visualization) 的占位符 -->
+            [Figure 4a Description: 来自十张 ccRCC 玻片的 UMAP 图（2D 散点图），显示来自不同模型/阶段的特征。 每个点代表来自图像切片的特征向量，按玻片标签着色。 显示的图包括：阶段 2 LocalTransformer 特征、阶段 1 LocalCLIP 特征、带有 MLP 编码器的 LocalCLIP 特征、scFoundation 基因嵌入和 GigaPath 图像嵌入。 报告了每个图的 ASW 分数。 期望的结果是来自不同玻片的点更好地混合（较低的 ASW），表明批次效应减少和表示更鲁棒。]
+            <p class="figure-ref">Figure 4a：图像和基因表达特征的 UMAP 可视化和 ASW 分数</p>
+        </div>
+        <p>
+            <span class="highlight">Figure 4a 的主要发现 (UMAP 可视化)：</span>
+            <ul>
+                <li><span class="highlight">CLIP Training Improves Embedding Mixing (Reduces Batch Effects)（CLIP 训练改进了嵌入混合（减少了批次效应））:</span> 比较 <span class="highlight">Stage 1 LocalCLIP training（阶段 1 LocalCLIP 训练）</span> *之后* 的特征 UMAP 图与单独 GigaPath 的特征 UMAP 图，观察到 CLIP 训练导致来自 <span class="highlight">different slides（不同玻片）的嵌入更清晰地混合</span>。 在仅 GigaPath 图中，来自同一玻片的点倾向于聚集在一起（批次效应），而在 LocalCLIP 图中，来自不同玻片的点更加混合。 在仅 GigaPath 图中，来自同一玻片的点倾向于聚集在一起（批次效应），而在 LocalCLIP 图中，来自不同玻片的点更<span class="highlight">相互交织</span>。 这表明多模态 CLIP 训练有助于减轻 <span class="highlight">batch effects（批次效应）</span>（不同玻片之间的技术差异），通过迫使模型学习对玻片特定偏差不太敏感，而更侧重于生物学相关变异的表示。</li>
+                <li><span class="highlight">PathOmCLIP with scFoundation Shows Lower ASW than MLP Variant（使用 scFoundation 的 PathOmCLIP 比 MLP 变体显示出更低的 ASW）:</span> 比较使用 scFoundation 作为组学编码器的 PathOmCLIP 与使用 MLP 的变体，PathOmCLIP-scFoundation 版本表现出 <span class="highlight">lower Average Silhouette Width (ASW) score（更低的平均轮廓宽度 (ASW) 分数）</span>。
+                    <div class="concept-explanation">
+                        <h4 class="concept-title">Average Silhouette Width (ASW) for Batch Effect Assessment（用于批次效应评估的平均轮廓宽度 (ASW)）</h4>
+                        <p>ASW 是用于评估数据集中聚类分离程度的指标。 在本文中，“clusters（聚类）”由玻片标签定义。 *higher* ASW score（*较高* 的 ASW 分数）表示数据点根据玻片标签良好地聚类，这意味着存在很强的批次效应（同一玻片内的特征比跨玻片的特征更相似）。 相反，*lower* ASW score（*较低* 的 ASW 分数）表明来自不同玻片的数据点更好地混合，表明批次效应减少。 在 <span class="figure-ref">Figure 4a</span> 中，较低的 ASW 分数是可取的，因为它意味着模型学习到的特征受玻片特定技术差异的影响较小，而更能反映潜在的生物学信号。
+                        </p>
+                    </div>
+                    PathOmCLIP-scFoundation 的较低 ASW 意味着使用预训练的单细胞 foundation model 进一步有助于 <span class="highlight">mitigating batch effects（减轻批次效应）</span>，并且与使用更简单的 MLP 编码器相比，学习到更 robust representations（鲁棒表示）。</li>
+                <li><span class="highlight">Stage 2 LocalTransformer Further Mitigates Batch Effects（阶段 2 LocalTransformer 进一步减轻批次效应）:</span>  *after* Stage 2 LocalTransformer（最终预测阶段）获得的特征显示出比 Stage 1 LocalCLIP 特征更好的玻片混合和更低的 ASW 分数。 这表明阶段 2 中额外的 LocalTransformer（专注于预测）进一步改进了嵌入，使其更 <span class="highlight">contextualized（语境化）并且受批次特定变异的影响更小</span>。</li>
+                <li><span class="highlight">Benefit of Multi-modal Training and Foundation Models Demonstrated（多模态训练和 Foundation Models 的优势得到证明）:</span> 总的来说，<span class="figure-ref">Figure 4a</span> 中的 UMAP 可视化和 ASW 分析为多模态训练和 foundation models 在 PathOmCLIP 中的使用提供了可视化和定量证据。 CLIP 训练有效地利用多模态信息来学习对批次效应更鲁棒，并且更能反映潜在生物学信号的表示，这仅使用单细胞嵌入（单独 scFoundation）或病理学嵌入（单独 GigaPath）是无法实现的。 scFoundation 的使用进一步增强了批次效应的减轻和表示的改进。</li>
+            </ul>
+        </p>
+        <p>
+            最后，<span class="figure-ref">Figure 4b</span> 提供了一个可视化比较，比较了使用 scFoundation 训练的 PathOmCLIP 与使用 MLP 作为基因表达编码器训练的 PathOmCLIP，对两个特定基因 TRBC1 和 HSPA1A 的预测空间基因表达谱。
+        </p>
+        <div style="text-align: center;">
+            <!-- Figure 4b (Gene Expression Comparison) 的占位符 -->
+            [Figure 4b Description: 热图网格，显示 TRBC1 和 HSPA1A 的空间表达模式。 行是基因（TRBC1、HSPA1A）。 列是方法（真实值、PathOmCLIP w/ MLP、PathOmCLIP w/ scFoundation）。 颜色强度表示对数转换后的基因表达水平。 对于 TRBC1 和 HSPA1A，与 PathOmCLIP w/ MLP 相比，PathOmCLIP w/ scFoundation 显示出减少的 false-positive predictions（假阳性预测）（在真实值中不存在的高预测表达区域）。]
+            <p class="figure-ref">Figure 4b：比较使用 scFoundation 与 MLP 编码器训练的 PathOmCLIP 的可视化</p>
+        </div>
+        <p>
+            <span class="highlight">Figure 4b 的主要发现 (基因表达比较)：</span>
+            <ul>
+                <li><span class="highlight">scFoundation Reduces False Positives（scFoundation 减少假阳性）:</span> 对于像 TRBC1 和 HSPA1A 这样的基因，使用 <span class="highlight">scFoundation</span> 训练的 PathOmCLIP 明显有助于 <span class="highlight">reduce false-positive predictions（减少假阳性预测）</span>，与使用 MLP 训练的 PathOmCLIP 相比。 False positives（假阳性）是模型错误预测高基因表达的区域，而真实值显示低表达。 基于 scFoundation 的模型生成的预测在空间上更准确，并且不太容易在实际表达较低或不存在的区域过度预测表达。</li>
+            </ul>
+            <p>
+                总的来说，<span class="figure-ref">Figure 4</span> 提供了令人信服的视觉和定量证据，证明 PathOmCLIP，特别是当利用单细胞 foundation model 和多模态训练时，学习到了精细化和鲁棒的表示，这些表示不易受批次效应的影响，并且能够更准确和生物学忠实地预测跨不同肿瘤类型的空间基因表达。
+            </p>
+
+        <h2>5. 讨论：意义、局限性和未来方向</h2>
+        <p>
+            讨论部分总结了研究的关键贡献，并深入探讨了 PathOmCLIP 及相关研究的意义、局限性和潜在的未来方向。
+        </p>
+        <p>
+            <span class="highlight">关键发现总结：</span>
+            <ul>
+                <li><strong>Foundation Models Enhance Prediction（Foundation Models 增强预测）:</strong> 该研究令人信服地证明了利用 <span class="highlight">foundation models for both modalities（两种模态的 foundation models）</span>——用于基因表达的 single-cell foundation model (scFoundation) 和用于组织学图像的 pathology foundation model (GigaPath)——显著提高了从病理图像预测 spatial transcriptomics 谱的准确性。</li>
+                <li><strong>Local Context is Critical（局部语境至关重要）:</strong> 通过 LocalTransformer 模块整合 <span class="highlight">local neighborhood information（局部邻域信息）</span> 被证明对于在多模态对齐和空间表达预测中实现最高性能至关重要。</li>
+            </ul>
+        </p>
+        <p>
+            <span class="highlight">局限性和未来方向：</span> 作者承认了一些局限性，并提出了未来研究的方向：
+        </p>
+        <ul>
+            <li><strong>Exploring Other Foundation Model Pairs（探索其他 Foundation Model 对）:</strong> 该研究测试了 scFoundation 和 GigaPath 的特定组合。 然而，foundation models 领域正在迅速发展，单细胞基因组学、spatial transcriptomics 和病理学领域都引入了更新、更先进的模型。 未来的研究可以探索这些 foundation models 的不同组合，以确定能够进一步提高性能的最佳配对。 例如，测试更新的单细胞 foundation models、spatial transcriptomics foundation models（如果可用）或更新的病理学 foundation models 可能会有所帮助。</li>
+            <li><strong>Addressing Batch Effects Further（进一步解决批次效应）:</strong>  虽然 PathOmCLIP 与更简单的模型相比表现出改进的批次效应减轻（如 <span class="figure-ref">Figure 4a</span> 所示），但批次效应仍然是病理学和单细胞数据分析中持续存在的挑战。 作者指出，即使是病理学 foundation models，虽然在处理样本或患者内部的批次效应方面表现更好，但仍然会受到 *between* patients（患者之间）批次效应的影响。 单细胞 foundation models 在处理批次效应方面也存在局限性。 未来的工作应侧重于开发更 robust solutions（鲁棒解决方案），专门用于 spatial histology-transcriptomics data（空间组织学-转录组学数据）中的 <span class="highlight">multi-modal batch effect problems（多模态批次效应问题）</span>。 这可能涉及开发为多模态学习量身定制的新型批次归一化技术，或整合领域自适应方法以进一步减少技术差异的影响。</li>
+            <li><strong>Data Requirements and Reliability（数据需求和可靠性）:</strong>  作者强调，虽然使用 foundation models 进行迁移学习非常有益，但模型仍然需要足够数量的 <span class="highlight">paired data（配对数据）</span> 来彻底测试其可靠性和泛化能力。 HEST-1K 数据集虽然是可用的最大的 curated spatial transcriptomics dataset（整理空间转录组学数据集），但仍然存在局限性，特别是对于某些肿瘤类型，这些肿瘤类型仅包含来自少量患者的样本（例如，少至两名患者）。 需要更广泛的配对数据集，特别是涵盖更广泛的肿瘤类型和患者人群，以进一步验证和提高 PathOmCLIP 等模型的鲁棒性。</li>
+            <li><strong>Fresh-Frozen vs. FFPE Samples（新鲜冷冻与 FFPE 样本）:</strong> 一个重要的实际挑战是病理学 foundation models 和 spatial transcriptomics data 之间在样本制备方面的差异。 大多数病理学 foundation models 主要在从 <span class="highlight">formalin-fixed paraffin-embedded (FFPE) samples（福尔马林固定石蜡包埋 (FFPE) 样本）</span> 扫描的病理图像上进行训练，这是临床病理学存档的标准方法。 然而，许多为 spatial transcriptomics 收集的样本是 <span class="highlight">fresh-frozen samples（新鲜冷冻样本）</span>，以更好地保存 RNA 的完整性。 当直接将主要在 FFPE 数据上训练的模型迁移到新鲜冷冻 spatial transcriptomics 数据时，这种组织处理方式的差异可能会导致 <span class="highlight">performance drop（性能下降）</span>。 未来的研究可以探索解决这种领域转移的策略，例如：
+                <ul>
+                    <li><strong>Generative models for image style transfer（用于图像风格迁移的生成模型）:</strong> 使用生成模型将新鲜冷冻图像转换为类似 FFPE 的图像，反之亦然，从而缩小视觉领域差距。</li>
+                    <li><strong>Spatial transcriptomics methods for FFPE samples（用于 FFPE 样本的 Spatial Transcriptomics 方法）:</strong> 开发与 FFPE 样本更兼容的 spatial transcriptomics 方法，从而生成与病理学 foundation models 训练数据更匹配的数据。</li>
+                </ul>
+            </li>
+            <li><strong>Interpretability and Biological Understanding（可解释性和生物学理解）:</strong>  虽然 PathOmCLIP 在预测基因表达方面实现了高 PCC 性能，但作者承认，更高的性能并不能保证模型正在学习生物学上有意义的特征。 需要进一步研究以了解 <span class="highlight">how PathOmCLIP connects morphological features in histology images to the predicted gene expression profiles（PathOmCLIP 如何将组织学图像中的形态学特征与预测的基因表达谱联系起来）</span>。 与病理学家合作解释这些模型学习到的特征并验证其生物学相关性被认为是重要的未来方向。 这可能涉及以下技术：
+                <ul>
+                    <li><strong>Feature visualization（特征可视化）:</strong>  可视化哪些图像区域或形态学模式与特定基因或基因集的预测最强相关。</li>
+                    <li><strong>Biological validation（生物学验证）:</strong>  与病理学家合作评估模型识别的形态学特征是否与已知的与特定基因表达模式或疾病亚型相关的病理学特征对齐。</li>
+                </ul>
+            </li>
+        </ul>
+        <p>
+            <span class="highlight">Clinical and Research Implications（临床和研究意义）：</span> 尽管存在这些局限性，作者强调了使用 PathOmCLIP 等模型从病理图像中推断分子特征的重大临床潜力。 将此类模型应用于大量现有组织学图像档案可以：
+        </p>
+        <ul>
+            <li><strong>Unlock valuable clinical information（解锁有价值的临床信息）:</strong> 从常规收集的组织学数据中提取分子见解，这些数据通常比 spatial transcriptomics 数据更丰富且更容易获得，尤其是在回顾性队列和临床档案中。</li>
+            <li><strong>Facilitate new biomarker discoveries（促进新生物标志物的发现）:</strong> 支持基于细胞形态学和分子表型相结合的新型生物标志物的识别，从而可能改善癌症诊断、预后和治疗分层。</li>
+        </ul>
+        <p>
+            作者总结说，PathOmCLIP 代表了弥合癌症研究和临床病理学中形态学和基因组学之间差距的重要一步，为更全面和数据高效的方法来理解和管理癌症铺平了道路。
+        </p>
+
+        <h2>6. 补充材料</h2>
+        <p>
+            补充材料部分简要描述了与以下方面相关的更多细节：
+        </p>
+        <ul>
+            <li><strong>Clustering Analysis Methodology（聚类分析方法）:</strong>  提供有关为空间模式评估执行的聚类分析的更多详细信息，包括在聚类之前使用 PCA（主成分分析）进行降维、邻域图构建、用于实现一致聚类数的 modified Leiden algorithm（修改后的 Leiden 算法），以及在 <span class="figure-ref">Figure 2b</span> 中用于对齐跨方法的聚类颜色的 Hungarian algorithm（匈牙利算法）的应用。</li>
+            <li><strong>Overall Model Structure（整体模型结构）:</strong>  概述了 PathOmCLIP 的具体架构细节，包括：
+                <ul>
+                    <li><strong>Encoder Models（编码器模型）:</strong>  GigaPath 用于图像编码，scFoundation 用于基因表达编码。</li>
+                    <li><strong>LocalTransformer Architecture（LocalTransformer 架构）:</strong> 用于 LocalTransformerLocalCLIP 和 LocalTransformerpred 模块的 4 层 Transformer，带有单注意力头。</li>
+                    <li><strong>Projectors（投影仪）:</strong>  线性图像投影仪和线性表达投影仪用于匹配两种模态嵌入的维度（在本例中投影到 512 维）。</li>
+                    <li><strong>Prediction Head（预测头）:</strong>  LocalTransformerpred 中的线性预测头，处理来自 Transformer 输出的第一个嵌入以生成基因表达向量。</li>
+                </ul>
+            </li>
+            <li><strong>Acknowledgements and Funding Information（致谢和资助信息）:</strong>  感谢为手稿改进提供反馈的个人，并提供资助披露，包括相关隶属关系和潜在的利益冲突。</li>
+        </ul>
+
+        <div class="note">
+            <strong>深度总结结论：</strong> PathOmCLIP 是计算病理学和空间组学领域的一个重要贡献。 它有效地利用了 foundation models 和局部语境建模的力量，在从组织学图像预测空间基因表达方面实现了 state-of-the-art performance（最先进的性能）。 详细的消融研究和跨癌症类型验证为PathOmCLIP 的架构选择提供了有力的证据。 虽然承认了局限性并提出了未来的研究方向，但作者令人信服地论证了 PathOmCLIP 在解锁存档组织学数据中的宝贵见解和推进我们对癌症生物学的理解方面的临床潜力。 这项研究为整合癌症研究和临床实践中的形态学和基因组学开辟了令人兴奋的新途径，**标志着该领域向前迈出了重要一步。**
+        </div>
+
+    </div>
+</body>
+</html>

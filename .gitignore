@@ -1,0 +1,22 @@
+# 忽略所有日志目录
+logs/
+logs_root/
+
+# 忽略模型检查点目录
+model_checkpoints/
+
+# 忽略通用的模型文件格式
+*.pth
+*.pt
+*.bin
+*.pb
+
+# 忽略 Jupyter Notebook 临时文件
+.ipynb_checkpoints/
+
+# 忽略 Python 缓存
+__pycache__/
+*.pyc
+
+# 忽略 macOS 系统文件
+.DS_Store
