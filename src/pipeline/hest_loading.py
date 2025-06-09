@@ -2,6 +2,7 @@
 
 import os
 import glob
+import json  # 新增：用于加载 JSON 文件
 import pandas as pd
 import numpy as np
 import scanpy as sc
@@ -116,13 +117,6 @@ class HESTSample:
     ) -> pd.DataFrame:
         """
         创建一个包含 WSI 和 ST 数据的综合图像，并返回 QC 数据的 DataFrame。
-
-        参数:
-          color (Optional[Union[str, List[str]]]): Scanpy 可视化的颜色参数。
-          use_precomputed_spatial_plot (bool): 是否使用预生成的空间转录组图像。
-
-        返回:
-          pd.DataFrame: QC 指标的 DataFrame。
         """
         if self.adata is None:
             print("AnnData 对象未加载。请确保在初始化时加载或手动加载。")
@@ -180,18 +174,18 @@ class HESTSample:
         plt.tight_layout()
         plt.show()
 
-        # 收集 QC 指标
+        # ============ 修改的 QC 指标部分 ============
+        # 只统计我们确实拥有的、对数据重要的字段
+        # 可按实际需要进行删减或调整
         qc_metrics = {
-            'Number of Spots Under Tissue': self.metadata_dict.get('Number of Spots Under Tissue', np.nan),
-            'Number of Reads': self.metadata_dict.get('Number of Reads', np.nan),
-            'Mean Reads per Spot': self.metadata_dict.get('Mean Reads per Spot', np.nan),
-            'Valid Barcodes': self.metadata_dict.get('Valid Barcodes', np.nan),
-            'Valid UMIs': self.metadata_dict.get('Valid UMIs', np.nan),
-            'Sequencing Saturation': self.metadata_dict.get('Sequencing Saturation', np.nan),
-            'Fraction of Spots Under Tissue': self.metadata_dict.get('Fraction of Spots Under Tissue', np.nan),
-            'Genes Detected': self.metadata_dict.get('Genes Detected', np.nan),
-            'Median Genes per Spot': self.metadata_dict.get('Median Genes per Spot', np.nan),
-            'Median UMI Counts per Spot': self.metadata_dict.get('Median UMI Counts per Spot', np.nan)
+            'spots_under_tissue':  self.metadata_dict.get('spots_under_tissue', np.nan),
+            'nb_genes':            self.metadata_dict.get('nb_genes', np.nan),
+            'inter_spot_dist':     self.metadata_dict.get('inter_spot_dist', np.nan),
+            'spot_diameter':       self.metadata_dict.get('spot_diameter', np.nan),
+            'pixel_size_um_embed': self.metadata_dict.get('pixel_size_um_embedded', np.nan),
+            'pixel_size_um_est':   self.metadata_dict.get('pixel_size_um_estimated', np.nan),
+            'fullres_px_width':    self.metadata_dict.get('fullres_px_width', np.nan),
+            'fullres_px_height':   self.metadata_dict.get('fullres_px_height', np.nan)
         }
 
         qc_df = pd.DataFrame([qc_metrics])
@@ -341,50 +335,125 @@ class HESTDataset:
         self.samples_dict = {}  # 存储 sample_id -> HESTSample
 
     def query_samples(
-        self, 
-        organ: Optional[str] = None, 
-        oncotree_code: Optional[str] = None, 
-        sample_ids: Optional[List[str]] = None
-    ) -> pd.DataFrame:
-        """
-        根据 organ, oncotree_code 或者指定的 sample_ids 在 metadata 里过滤。
+            self, 
+            organ: Optional[str] = None, 
+            oncotree_code: Optional[str] = None, 
+            sample_ids: Optional[List[str]] = None,
+            disease_state: Optional[str] = None,
+            species: Optional[str] = None,
+            st_technology: Optional[str] = None,
+            preservation_method: Optional[str] = None,
+            nb_genes: Optional[int] = None,
+            data_publication_date: Optional[str] = None,
+            license: Optional[str] = None,
+            tissue: Optional[str] = None,
+            subseries: Optional[str] = None,
+            # 可以根据需要继续添加更多的筛选条件
+        ) -> pd.DataFrame:
+            """
+            根据多个筛选条件在 metadata 里过滤样本。
 
-        参数:
-          organ (Optional[str]): 器官类型。
-          oncotree_code (Optional[str]): 癌症类型代码。
-          sample_ids (Optional[List[str]]): 特定的样本 ID 列表。
+            参数:
+                organ (Optional[str]): 器官类型。
+                oncotree_code (Optional[str]): 癌症类型代码。
+                sample_ids (Optional[List[str]]): 特定的样本 ID 列表。
+                disease_state (Optional[str]): 疾病状态。
+                species (Optional[str]): 物种。
+                st_technology (Optional[str]): 技术类型。
+                preservation_method (Optional[str]): 保存方法。
+                nb_genes (Optional[int]): 基因数量。
+                data_publication_date (Optional[str]): 数据发表日期。
+                license (Optional[str]): 许可证类型。
+                tissue (Optional[str]): 组织类型。
+                subseries (Optional[str]): 子系列。
+                # 其他参数...
 
-        返回:
-          pd.DataFrame: 过滤后的元数据 DataFrame。
-        """
-        df = self.meta_df.copy()
-        if organ:
-            df = df[df['organ'] == organ]
-        if oncotree_code:
-            df = df[df['oncotree_code'] == oncotree_code]
-        if sample_ids:
-            df = df[df['id'].isin(sample_ids)]
-        return df
+            返回:
+                pd.DataFrame: 过滤后的元数据 DataFrame。
+            """
+            df = self.meta_df.copy()
+            if organ:
+                df = df[df['organ'] == organ]
+            if oncotree_code:
+                df = df[df['oncotree_code'] == oncotree_code]
+            if sample_ids:
+                df = df[df['id'].isin(sample_ids)]
+            if disease_state:
+                df = df[df['disease_state'] == disease_state]
+            if species:
+                df = df[df['species'] == species]
+            if st_technology:
+                df = df[df['st_technology'] == st_technology]
+            if preservation_method:
+                df = df[df['preservation_method'] == preservation_method]
+            if nb_genes is not None:
+                df = df[df['nb_genes'] == nb_genes]
+            if data_publication_date:
+                df = df[df['data_publication_date'] == data_publication_date]
+            if license:
+                df = df[df['license'] == license]
+            if tissue:
+                df = df[df['tissue'] == tissue]
+            if subseries:
+                df = df[df['subseries'] == subseries]
+            # 继续添加更多的筛选条件
+            return df
+
 
     def get_samples(
         self, 
         organ: Optional[str] = None, 
         oncotree_code: Optional[str] = None, 
-        sample_ids: Optional[List[str]] = None
+        sample_ids: Optional[List[str]] = None,
+        disease_state: Optional[str] = None,
+        species: Optional[str] = None,
+        st_technology: Optional[str] = None,
+        preservation_method: Optional[str] = None,
+        nb_genes: Optional[int] = None,
+        data_publication_date: Optional[str] = None,
+        license: Optional[str] = None,
+        tissue: Optional[str] = None,
+        subseries: Optional[str] = None,
+        # 可以根据需要继续添加更多的筛选条件
     ) -> List[HESTSample]:
         """
         返回满足条件的 HESTSample 实例列表。
 
         参数:
-          organ (Optional[str]): 器官类型。
-          oncotree_code (Optional[str]): 癌症类型代码。
-          sample_ids (Optional[List[str]]): 特定的样本 ID 列表。
+            organ (Optional[str]): 器官类型。
+            oncotree_code (Optional[str]): 癌症类型代码。
+            sample_ids (Optional[List[str]]): 特定的样本 ID 列表。
+            disease_state (Optional[str]): 疾病状态。
+            species (Optional[str]): 物种。
+            st_technology (Optional[str]): 技术类型。
+            preservation_method (Optional[str]): 保存方法。
+            nb_genes (Optional[int]): 基因数量。
+            data_publication_date (Optional[str]): 数据发表日期。
+            license (Optional[str]): 许可证类型。
+            tissue (Optional[str]): 组织类型。
+            subseries (Optional[str]): 子系列。
+            # 其他参数...
 
         返回:
-          List[HESTSample]: 满足条件的样本列表。
+            List[HESTSample]: 满足条件的样本列表。
         """
-        df = self.query_samples(organ, oncotree_code, sample_ids)
+        df = self.query_samples(
+            organ=organ,
+            oncotree_code=oncotree_code,
+            sample_ids=sample_ids,
+            disease_state=disease_state,
+            species=species,
+            st_technology=st_technology,
+            preservation_method=preservation_method,
+            nb_genes=nb_genes,
+            data_publication_date=data_publication_date,
+            license=license,
+            tissue=tissue,
+            subseries=subseries
+            # 继续传递更多的筛选条件
+        )
         samples = []
+        metadata_dir = os.path.join(self.data_dir, "metadata")  # QC metrics 的 JSON 文件目录
         for i, row in df.iterrows():
             sid = row['id']
             # 构造 AnnData 文件路径
@@ -419,6 +488,23 @@ class HESTDataset:
             if not os.path.exists(spatial_plot_path):
                 spatial_plot_path = None  # 如果没有预生成的图像
 
+            # 加载对应的 JSON 文件作为 QC 指标
+            json_path = os.path.join(metadata_dir, f"{sid}.json")
+            if os.path.exists(json_path):
+                try:
+                    with open(json_path, 'r') as f:
+                        qc_data = json.load(f)
+                except Exception as e:
+                    print(f"加载 QC JSON 文件失败 for {sid}: {e}")
+                    qc_data = {}
+            else:
+                print(f"未找到 QC JSON 文件 for {sid}")
+                qc_data = {}
+
+            # 合并 row.to_dict() 和 qc_data
+            metadata = row.to_dict()
+            metadata.update(qc_data)  # qc_data 覆盖 metadata 中的相同键
+
             # 构造 HESTSample 对象
             sample = HESTSample(
                 sample_id = sid,
@@ -426,7 +512,7 @@ class HESTDataset:
                 wsi_path = wsi_path,
                 patches_dir = patches_dir,
                 transcripts_path = transcripts_path,
-                metadata_dict = row.to_dict(),
+                metadata_dict = metadata,
                 spatial_plot_path = spatial_plot_path,
                 load_adata=False,  # 确保加载 AnnData 对象
                 adata_lazy=False,  # 根据需要选择懒加载或全加载
@@ -438,33 +524,23 @@ class HESTDataset:
     def compute_metrics_statistics(self, samples: List[HESTSample]) -> pd.DataFrame:
         """
         统计过滤后的数据集的关键 QC 指标的统计值。
-
-        参数:
-          samples (List[HESTSample]): 过滤后的样本列表。
-
-        返回:
-          pd.DataFrame: 包含各 QC 指标的统计值（均值、中位数、标准差等）。
         """
-        # 收集所有样本的 QC 指标
         qc_list = []
         for sample in samples:
+            # ============ 修改的 QC 指标部分 ============
+            # 与上面 visual_comparison 中保持一致
             qc_metrics = {
-                'Number of Spots Under Tissue': sample.metadata_dict.get('Number of Spots Under Tissue', np.nan),
-                'Number of Reads': sample.metadata_dict.get('Number of Reads', np.nan),
-                'Mean Reads per Spot': sample.metadata_dict.get('Mean Reads per Spot', np.nan),
-                'Valid Barcodes': sample.metadata_dict.get('Valid Barcodes', np.nan),
-                'Valid UMIs': sample.metadata_dict.get('Valid UMIs', np.nan),
-                'Sequencing Saturation': sample.metadata_dict.get('Sequencing Saturation', np.nan),
-                'Fraction of Spots Under Tissue': sample.metadata_dict.get('Fraction of Spots Under Tissue', np.nan),
-                'Genes Detected': sample.metadata_dict.get('Genes Detected', np.nan),
-                'Median Genes per Spot': sample.metadata_dict.get('Median Genes per Spot', np.nan),
-                'Median UMI Counts per Spot': sample.metadata_dict.get('Median UMI Counts per Spot', np.nan)
+                'spots_under_tissue':  sample.metadata_dict.get('spots_under_tissue', np.nan),
+                'nb_genes':            sample.metadata_dict.get('nb_genes', np.nan),
+                'inter_spot_dist':     sample.metadata_dict.get('inter_spot_dist', np.nan),
+                'spot_diameter':       sample.metadata_dict.get('spot_diameter', np.nan),
+                'pixel_size_um_embed': sample.metadata_dict.get('pixel_size_um_embedded', np.nan),
+                'pixel_size_um_est':   sample.metadata_dict.get('pixel_size_um_estimated', np.nan),
+                'fullres_px_width':    sample.metadata_dict.get('fullres_px_width', np.nan),
+                'fullres_px_height':   sample.metadata_dict.get('fullres_px_height', np.nan)
             }
             qc_list.append(qc_metrics)
         
-        # 创建 DataFrame
         qc_df = pd.DataFrame(qc_list)
-        
-        # 计算统计值
         stats_df = qc_df.describe().T  # 转置以便每个指标作为行
         return stats_df
