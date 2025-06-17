@@ -484,6 +484,14 @@ def train_diffusion_model(rank, world_size, local_rank, args):
 
     for epoch in range(start_epoch, args.epochs):
         conditioner.train(); unet.train(); sampler.set_epoch(epoch)
+
+        # =====================================================================
+        # >>>>>>>> 1. 【添加代码】初始化Epoch级别的累加器 <<<<<<<<
+        # =====================================================================
+        epoch_loss_sum = 0.0
+        steps_in_epoch = 0
+        # =====================================================================
+
         progress_bar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{args.epochs}", disable=not is_main_process)
         optimizer.zero_grad()
 
@@ -510,6 +518,14 @@ def train_diffusion_model(rank, world_size, local_rank, args):
                 loss = F.mse_loss(noise_pred.float(), noise.float())
             
             loss_unscaled = loss.item()
+
+            # =====================================================================
+            # >>>>>>>> 2. 【添加代码】更新Epoch级别的累加器 <<<<<<<<
+            # =====================================================================
+            epoch_loss_sum += loss_unscaled
+            steps_in_epoch += 1
+            # =====================================================================
+
             loss = loss / args.accumulation_steps
             
             if torch.isnan(loss) or torch.isinf(loss):
@@ -531,16 +547,73 @@ def train_diffusion_model(rank, world_size, local_rank, args):
                         writer.add_scalar('Train/Batch_Loss', loss_unscaled, global_step)
                         writer.add_scalar('Train/Learning_Rate', optimizer.param_groups[0]['lr'], global_step)
                 
+                # ---- AFTER (The corrected code) ----
                 if is_main_process and global_step > 0 and global_step % args.sample_interval_steps == 0:
                     print(f"\n--- Generating samples at Step {global_step} ---")
-                    sample_and_compare(conditioner.module, unet.module, vae, noise_scheduler, device, args, global_step, writer)
+
+                    torch.cuda.empty_cache()
+
+                    # Correctly get the underlying models for the sampling function.
+                    # If the conditioner is frozen, it's not DDP-wrapped.
+                    unwrapped_conditioner = conditioner if args.freeze_conditioner else conditioner.module
+                    
+                    # The UNet is always DDP-wrapped.
+                    unwrapped_unet = unet.module
+                    
+                    sample_and_compare(unwrapped_conditioner, unwrapped_unet, vae, noise_scheduler, device, args, global_step, writer)
+
+                    torch.cuda.empty_cache()
+                    
+                    # The rest of the code remains the same
                     conditioner.train(); unet.train()
 
             if is_main_process:
                 progress_bar.set_postfix(loss=f"{loss_unscaled:.4f}", step=global_step, lr=f"{optimizer.param_groups[0]['lr']:.2e}")
         
+        # ===================================================================================
+        
+        # >>>>>>>> 3. 【添加代码】同步、计算并打印Epoch平均损失 <<<<<<<<
+        # ===================================================================================
+        # --- End of Epoch: Synchronize and Log Average Loss ---
+        # 1. 将当前GPU的累加和与步骤数放入一个Tensor中
+        #    使用 float64 以保证求和时的精度
+        local_epoch_data = torch.tensor([epoch_loss_sum, steps_in_epoch], dtype=torch.float64, device=device)
+
+        # 2. 使用 all_reduce 将所有GPU的Tensor数据相加。
+        #    op=dist.ReduceOp.SUM 是默认操作，这里显式写出以示清晰。
+        #    操作结束后，每个GPU上的 local_epoch_data 都将是全局的总和。
+        dist.all_reduce(local_epoch_data, op=dist.ReduceOp.SUM)
+
+        # 3. 在主进程 (rank 0) 上计算并打印全局平均损失
+        if is_main_process:
+            global_epoch_loss_sum = local_epoch_data[0].item()
+            global_steps_in_epoch = local_epoch_data[1].item()
+            
+            if global_steps_in_epoch > 0:
+                average_epoch_loss = global_epoch_loss_sum / global_steps_in_epoch
+                
+                # 打印一个漂亮的总结框
+                print(f"\n" + "="*50)
+                print(f"Epoch {epoch+1}/{args.epochs} Summary")
+                print(f"  - Average Training Loss (all GPUs): {average_epoch_loss:.5f}")
+                print(f"  - Total Batches Processed (all GPUs): {int(global_steps_in_epoch)}")
+                print("="*50 + f"\n")
+
+                # 同样可以记录到TensorBoard
+                if writer:
+                    writer.add_scalar('Train/Epoch_Loss_Avg', average_epoch_loss, epoch + 1)
+            else:
+                print(f"\n--- Epoch {epoch+1}/{args.epochs} Summary: No steps were completed. ---\n")
+        # ===================================================================================
+
+        # ---- 修改后的正确代码 ----
         if is_main_process and ((epoch + 1) % args.save_interval == 0 or (epoch + 1) == args.epochs):
-            save_checkpoint(epoch, global_step, conditioner.module, unet.module, optimizer, lr_scheduler, scaler, args)
+            # 正确地获取底层模型，以传递给保存函数
+            # 和上次对 sample_and_compare 的修复逻辑完全相同
+            unwrapped_conditioner = conditioner if args.freeze_conditioner else conditioner.module
+            unwrapped_unet = unet.module # UNet总是被包装的
+
+            save_checkpoint(epoch, global_step, unwrapped_conditioner, unwrapped_unet, optimizer, lr_scheduler, scaler, args)
         
         dist.barrier()
     
